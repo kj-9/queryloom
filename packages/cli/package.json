@@ -1,0 +1,42 @@
+{
+  "name": "@queryloom/cli",
+  "version": "0.1.0",
+  "description": "The Queryloom local dashboard CLI",
+  "type": "module",
+  "bin": {
+    "queryloom": "./dist/index.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsx src/index.ts build",
+    "dev": "tsx src/index.ts dev",
+    "preview": "tsx src/index.ts preview",
+    "compile": "tsup src/index.ts --format esm --dts --clean --external vite --external @sveltejs/vite-plugin-svelte --external @tailwindcss/vite",
+    "prepack": "bun run compile",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "tsx --test src/**/*.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@vitejs/plugin-basic-ssl": "^2.0.0",
+    "tsx": "^4.19.2",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "@sveltejs/vite-plugin-svelte": "^5.0.3",
+    "@tailwindcss/vite": "^4.1.13",
+    "@queryloom/runtime": "workspace:*",
+    "esm-env": "^1.2.2",
+    "svelte": "^5.16.0",
+    "tailwindcss": "^4.1.13",
+    "vite": "^6.0.5",
+    "yaml": "^2.6.1"
+  }
+}

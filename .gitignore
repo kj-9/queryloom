@@ -1,0 +1,4 @@
+node_modules/
+dist/
+.queryloom/
+.DS_Store

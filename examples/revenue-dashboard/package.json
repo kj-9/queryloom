@@ -1,0 +1,16 @@
+{
+  "name": "@queryloom/example-revenue-dashboard",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "svelte-check --tsconfig tsconfig.json",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@queryloom/runtime": "workspace:*"
+  },
+  "devDependencies": {
+    "svelte-check": "^4.1.1",
+    "typescript": "^5.7.2"
+  }
+}

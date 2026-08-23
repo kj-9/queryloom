@@ -1,0 +1,4 @@
+resources:
+  - name: revenue
+    path: data/revenue.csv
+    format: csv

@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "baseUrl": ".",
+    "paths": {
+      "@queryloom/runtime": ["../../packages/runtime/src/index.ts"],
+      "@queryloom/runtime/*": ["../../packages/runtime/src/*"]
+    }
+  },
+  "include": ["dashboard.svelte", "src/**/*.d.ts", "../../packages/runtime/src/assets.d.ts"]
+}
