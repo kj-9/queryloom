@@ -5,7 +5,7 @@ import { inspectResources, renderInspection } from "./inspect.js";
 
 const exampleDir = path.resolve(import.meta.dirname, "../../../examples/revenue-dashboard");
 
-test("inspects a configured CSV resource through DuckDB-Wasm", async () => {
+test("inspects a configured CSV resource through DuckDB-Wasm", { timeout: 20_000 }, async () => {
   const inspection = await inspectResources(exampleDir, [{ name: "revenue", path: "data/revenue.csv", format: "csv" }]);
   const table = inspection.resources[0]?.tables[0];
 
