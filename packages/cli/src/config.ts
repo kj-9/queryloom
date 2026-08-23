@@ -52,7 +52,8 @@ function normalizedRelativePath(projectDir: string, value: string): string {
 }
 
 function inferFormat(resourcePath: string, format: unknown): ResourceFormat {
-  const normalized = typeof format === "string" ? format.toLowerCase() : path.extname(resourcePath).slice(1).toLowerCase();
+  const normalized =
+    typeof format === "string" ? format.toLowerCase() : path.extname(resourcePath).slice(1).toLowerCase();
   if (normalized === "csv") return "csv";
   if (normalized === "parquet" || normalized === "pq") return "parquet";
   throw new Error(`Unsupported resource format for ${resourcePath}; use csv or parquet`);
@@ -82,7 +83,10 @@ export function normalizeConfig(value: unknown, projectDir: string): QueryloomCo
     }
 
     const normalizedPath = normalizedRelativePath(projectDir, resourcePath);
-    const name = typeof resource.name === "string" && resource.name.length > 0 ? resource.name : mapName ?? path.basename(normalizedPath, path.extname(normalizedPath));
+    const name =
+      typeof resource.name === "string" && resource.name.length > 0
+        ? resource.name
+        : (mapName ?? path.basename(normalizedPath, path.extname(normalizedPath)));
     if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
       throw new Error(`Resource name must be a SQL identifier: ${name}`);
     }
@@ -101,7 +105,9 @@ export function normalizeConfig(value: unknown, projectDir: string): QueryloomCo
   return { resources };
 }
 
-export async function loadProject(projectDir: string): Promise<{ projectDir: string; dashboardPath: string; config: QueryloomConfig }> {
+export async function loadProject(
+  projectDir: string,
+): Promise<{ projectDir: string; dashboardPath: string; config: QueryloomConfig }> {
   const absoluteProjectDir = path.resolve(projectDir);
   const dashboardPath = path.join(absoluteProjectDir, "dashboard.svelte");
   const configPath = path.join(absoluteProjectDir, "queryloom.yaml");

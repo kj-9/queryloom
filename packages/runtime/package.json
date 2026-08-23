@@ -9,7 +9,9 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "compile": "tsup src/index.ts --format esm --clean && tsc -p tsconfig.json --emitDeclarationOnly --outDir dist",
     "prepack": "bun run compile",

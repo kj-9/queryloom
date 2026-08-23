@@ -17,5 +17,8 @@ test("normalizes array and map resources without allowing path traversal", () =>
     { name: "revenue", path: "data/revenue.csv", format: "csv" },
     { name: "events", path: "data/events.parquet", format: "parquet" },
   ]);
-  assert.throws(() => normalizeConfig({ resources: [{ name: "bad", path: "../secret.csv" }] }, "/tmp/dashboard"), /inside the dashboard/);
+  assert.throws(
+    () => normalizeConfig({ resources: [{ name: "bad", path: "../secret.csv" }] }, "/tmp/dashboard"),
+    /inside the dashboard/,
+  );
 });

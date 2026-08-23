@@ -1,7 +1,7 @@
 import * as duckdb from "@duckdb/duckdb-wasm";
 import duckdbEhWorker from "@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js?url";
-import duckdbEhWasm from "@duckdb/duckdb-wasm/dist/duckdb-eh.wasm?url";
 import duckdbMvpWorker from "@duckdb/duckdb-wasm/dist/duckdb-browser-mvp.worker.js?url";
+import duckdbEhWasm from "@duckdb/duckdb-wasm/dist/duckdb-eh.wasm?url";
 import duckdbMvpWasm from "@duckdb/duckdb-wasm/dist/duckdb-mvp.wasm?url";
 import { resourceTableSql } from "./sql.js";
 
@@ -45,7 +45,9 @@ export class LocalDuckDBRuntime {
 
   public async query<T>(sql: string): Promise<readonly T[]> {
     await this.readyPromise;
-    const result = await this.connection!.query(sql);
+    const connection = this.connection;
+    if (!connection) throw new Error("DuckDB connection is not available");
+    const result = await connection.query(sql);
     return result.toArray() as T[];
   }
 

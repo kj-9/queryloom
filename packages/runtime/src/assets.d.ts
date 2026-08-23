@@ -4,6 +4,6 @@ declare module "*?url" {
 }
 
 declare module "*.svelte" {
-  const component: any;
+  const component: import("svelte").Component;
   export default component;
 }

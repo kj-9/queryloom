@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import tailwindcss from "@tailwindcss/vite";
-import { build as viteBuild, createServer, preview as vitePreview, type InlineConfig, type Plugin } from "vite";
+import { createServer, type InlineConfig, type Plugin, build as viteBuild, preview as vitePreview } from "vite";
 import type { QueryloomConfig } from "./config.js";
 
 const virtualEntryId = "\0queryloom/generated-entry";
@@ -138,7 +138,11 @@ function tailwindAlias(): string {
   return fileURLToPath(import.meta.resolve("tailwindcss/index.css"));
 }
 
-export function viteConfig(project: { projectDir: string; dashboardPath: string; config: QueryloomConfig }, command: "serve" | "build", options: { outDir?: string } = {}): InlineConfig {
+export function viteConfig(
+  project: { projectDir: string; dashboardPath: string; config: QueryloomConfig },
+  command: "serve" | "build",
+  options: { outDir?: string } = {},
+): InlineConfig {
   return {
     configFile: false,
     root: project.projectDir,
@@ -166,14 +170,25 @@ export function viteConfig(project: { projectDir: string; dashboardPath: string;
   };
 }
 
-export async function buildProject(project: { projectDir: string; dashboardPath: string; config: QueryloomConfig }, outDir?: string): Promise<void> {
+export async function buildProject(
+  project: { projectDir: string; dashboardPath: string; config: QueryloomConfig },
+  outDir?: string,
+): Promise<void> {
   await viteBuild(viteConfig(project, "build", { outDir }));
 }
 
-export async function startDev(project: { projectDir: string; dashboardPath: string; config: QueryloomConfig }, options: { host?: string; port?: number; strictPort?: boolean }): Promise<void> {
+export async function startDev(
+  project: { projectDir: string; dashboardPath: string; config: QueryloomConfig },
+  options: { host?: string; port?: number; strictPort?: boolean },
+): Promise<void> {
   const server = await createServer({
     ...viteConfig(project, "serve"),
-    server: { ...viteConfig(project, "serve").server, host: options.host, port: options.port, strictPort: options.strictPort },
+    server: {
+      ...viteConfig(project, "serve").server,
+      host: options.host,
+      port: options.port,
+      strictPort: options.strictPort,
+    },
   });
   await server.listen();
   server.printUrls();

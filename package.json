@@ -13,8 +13,14 @@
     "queryloom": "bun packages/cli/src/index.ts",
     "cli:compile": "bun run --cwd packages/cli compile",
     "cli:link": "bun run cli:compile && bun link --cwd packages/cli",
+    "lint": "biome lint .",
+    "format": "biome format --write .",
+    "style:check": "biome ci .",
     "test": "bun --workspaces test",
     "check": "bun --workspaces run check"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.10"
   },
   "engines": {
     "node": ">=22"

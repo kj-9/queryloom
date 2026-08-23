@@ -7,6 +7,7 @@ test("renders the agent guide as markdown and JSON", () => {
   assert.match(renderGuide(), /Visual direction/);
   assert.match(renderGuide(), /#0777b3/);
   assert.match(renderGuide(), /marks.*snippet/);
+  assert.match(renderGuide(), /selected value from the event/);
   assert.deepEqual(JSON.parse(renderGuide("json")), guide);
 });
 

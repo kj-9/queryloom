@@ -7,6 +7,9 @@ export function quoteString(value: string): string {
 }
 
 export function resourceTableSql(name: string, path: string, format: "csv" | "parquet"): string {
-  const reader = format === "csv" ? `read_csv_auto(${quoteString(path)}, HEADER = true, AUTO_DETECT = true)` : `read_parquet(${quoteString(path)})`;
+  const reader =
+    format === "csv"
+      ? `read_csv_auto(${quoteString(path)}, HEADER = true, AUTO_DETECT = true)`
+      : `read_parquet(${quoteString(path)})`;
   return `CREATE OR REPLACE TABLE ${quoteIdentifier(name)} AS SELECT * FROM ${reader}`;
 }

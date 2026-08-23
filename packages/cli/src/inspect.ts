@@ -52,7 +52,8 @@ function quoteString(value: string): string {
 }
 
 function normalize(value: unknown): unknown {
-  if (value === null || typeof value === "string" || typeof value === "number" || typeof value === "boolean") return value;
+  if (value === null || typeof value === "string" || typeof value === "number" || typeof value === "boolean")
+    return value;
   if (typeof value === "bigint") return Number.isSafeInteger(value) ? Number(value) : value.toString();
   if (value instanceof Date) return value.toISOString();
   const rendered = String(value);
@@ -72,8 +73,15 @@ function normalizeColumnValue(value: unknown, type: string): unknown {
   return normalized;
 }
 
-function normalizeRows(rows: readonly Record<string, unknown>[], types: ReadonlyMap<string, string>): Record<string, unknown>[] {
-  return rows.map((row) => Object.fromEntries(Object.entries(row).map(([key, value]) => [key, normalizeColumnValue(value, types.get(key) ?? "")] )));
+function normalizeRows(
+  rows: readonly Record<string, unknown>[],
+  types: ReadonlyMap<string, string>,
+): Record<string, unknown>[] {
+  return rows.map((row) =>
+    Object.fromEntries(
+      Object.entries(row).map(([key, value]) => [key, normalizeColumnValue(value, types.get(key) ?? "")]),
+    ),
+  );
 }
 
 function inferredFormat(filePath: string): InspectableFormat {
@@ -85,7 +93,9 @@ function inferredFormat(filePath: string): InspectableFormat {
 }
 
 function isNumeric(type: string): boolean {
-  return /^(TINYINT|SMALLINT|INTEGER|BIGINT|HUGEINT|UTINYINT|USMALLINT|UINTEGER|UBIGINT|FLOAT|DOUBLE|DECIMAL|REAL)/.test(type.toUpperCase());
+  return /^(TINYINT|SMALLINT|INTEGER|BIGINT|HUGEINT|UTINYINT|USMALLINT|UINTEGER|UBIGINT|FLOAT|DOUBLE|DECIMAL|REAL)/.test(
+    type.toUpperCase(),
+  );
 }
 
 function isComparable(type: string): boolean {
@@ -103,7 +113,10 @@ async function createDatabase(): Promise<duckdb.DuckDBBindings> {
 }
 
 function tableReaderSql(tableName: string, fileName: string, format: QueryloomResource["format"]): string {
-  const reader = format === "csv" ? `read_csv_auto(${quoteString(fileName)}, HEADER = true, AUTO_DETECT = true)` : `read_parquet(${quoteString(fileName)})`;
+  const reader =
+    format === "csv"
+      ? `read_csv_auto(${quoteString(fileName)}, HEADER = true, AUTO_DETECT = true)`
+      : `read_parquet(${quoteString(fileName)})`;
   return `CREATE OR REPLACE TEMP TABLE ${quoteIdentifier(tableName)} AS SELECT * FROM ${reader}`;
 }
 
@@ -121,22 +134,30 @@ function inspectTable(connection: duckdb.DuckDBConnection, tableName: string): T
   const rowCount = scalar(connection.query(`SELECT COUNT(*) AS count FROM ${table}`), "count");
   const columns = tableInfo.map((column) => {
     const field = quoteIdentifier(column.name);
-    const stats = rows<Record<string, unknown>>(connection.query(`
+    const stats =
+      rows<Record<string, unknown>>(
+        connection.query(`
       SELECT
         COUNT(*) FILTER (WHERE ${field} IS NULL) AS nullCount,
         APPROX_COUNT_DISTINCT(${field}) AS distinctCount
         ${isComparable(column.type) ? `, MIN(${field}) AS minimum, MAX(${field}) AS maximum` : ""}
         ${isNumeric(column.type) ? `, AVG(${field}) AS average` : ""}
       FROM ${table}
-    `))[0] ?? {};
+    `),
+      )[0] ?? {};
 
     return {
       name: column.name,
       type: column.type,
-      nullable: !Boolean(column.notnull),
+      nullable: !column.notnull,
       nullCount: Number(stats.nullCount ?? 0),
       distinctCount: Number(stats.distinctCount ?? 0),
-      ...(isComparable(column.type) ? { minimum: normalizeColumnValue(stats.minimum, column.type), maximum: normalizeColumnValue(stats.maximum, column.type) } : {}),
+      ...(isComparable(column.type)
+        ? {
+            minimum: normalizeColumnValue(stats.minimum, column.type),
+            maximum: normalizeColumnValue(stats.maximum, column.type),
+          }
+        : {}),
       ...(isNumeric(column.type) ? { average: Number(stats.average ?? 0) } : {}),
     } satisfies ColumnInspection;
   });
@@ -145,7 +166,10 @@ function inspectTable(connection: duckdb.DuckDBConnection, tableName: string): T
     name: tableName,
     rowCount,
     columns,
-    sample: normalizeRows(rows<Record<string, unknown>>(connection.query(`SELECT * FROM ${table} LIMIT 5`)), new Map(tableInfo.map((column) => [column.name, column.type]))),
+    sample: normalizeRows(
+      rows<Record<string, unknown>>(connection.query(`SELECT * FROM ${table} LIMIT 5`)),
+      new Map(tableInfo.map((column) => [column.name, column.type])),
+    ),
   };
 }
 
@@ -177,7 +201,9 @@ export async function inspectPath(filePath: string): Promise<DataInspection> {
   const absolutePath = path.resolve(filePath);
   const format = inferredFormat(absolutePath);
   if (format !== "duckdb") {
-    return inspectResources(path.dirname(absolutePath), [{ name: path.basename(absolutePath, path.extname(absolutePath)), path: path.basename(absolutePath), format }]);
+    return inspectResources(path.dirname(absolutePath), [
+      { name: path.basename(absolutePath, path.extname(absolutePath)), path: path.basename(absolutePath), format },
+    ]);
   }
 
   const database = await createDatabase();
@@ -186,20 +212,24 @@ export async function inspectPath(filePath: string): Promise<DataInspection> {
   database.open({ path: virtualPath, accessMode: duckdb.DuckDBAccessMode.READ_ONLY });
   const connection = database.connect();
   try {
-    const tableNames = rows<{ table_name: string }>(connection.query(`
+    const tableNames = rows<{ table_name: string }>(
+      connection.query(`
       SELECT table_name
       FROM information_schema.tables
       WHERE table_schema = 'main' AND table_type = 'BASE TABLE'
       ORDER BY table_name
-    `));
+    `),
+    );
     return {
       version: 1,
-      resources: [{
-        name: path.basename(absolutePath, path.extname(absolutePath)),
-        path: absolutePath,
-        format,
-        tables: tableNames.map((table) => inspectTable(connection, table.table_name)),
-      }],
+      resources: [
+        {
+          name: path.basename(absolutePath, path.extname(absolutePath)),
+          path: absolutePath,
+          format,
+          tables: tableNames.map((table) => inspectTable(connection, table.table_name)),
+        },
+      ],
     };
   } finally {
     connection.close();
@@ -217,7 +247,10 @@ export function renderInspection(inspection: DataInspection, format: InspectForm
       "",
       "| Column | Type | Nulls | Distinct | Range / average |",
       "| --- | --- | ---: | ---: | --- |",
-      ...table.columns.map((column) => `| ${column.name} | ${column.type} | ${column.nullCount.toLocaleString("en-US")} | ${column.distinctCount.toLocaleString("en-US")} | ${column.minimum === undefined ? "—" : `${String(column.minimum)}–${String(column.maximum)}${column.average === undefined ? "" : ` · avg ${column.average.toFixed(2)}`}`} |`),
+      ...table.columns.map(
+        (column) =>
+          `| ${column.name} | ${column.type} | ${column.nullCount.toLocaleString("en-US")} | ${column.distinctCount.toLocaleString("en-US")} | ${column.minimum === undefined ? "—" : `${String(column.minimum)}–${String(column.maximum)}${column.average === undefined ? "" : ` · avg ${column.average.toFixed(2)}`}`} |`,
+      ),
       "",
       "Sample (first 5 rows):",
       "```json",

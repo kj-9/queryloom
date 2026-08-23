@@ -35,7 +35,7 @@ export const guide = {
     requiredFor: "The primary visualization",
     purpose: "Show a meaningful first render or data/filter state change.",
     duration: "200–500ms",
-    prefer: "Use LayerChart motion; for time-series, a one-time path draw is appropriate.",
+    prefer: "Use LayerChart chart marks; for time-series, a one-time path draw is appropriate.",
     avoid: ["Looping motion", "Decorative motion", "Motion that obscures data comparison"],
     accessibility: "Respect prefers-reduced-motion.",
     documentation: "https://next.layerchart.com/docs/guides/animation",
@@ -49,6 +49,7 @@ export const guide = {
     "Format dates and fill missing time buckets in SQL when a chart needs a continuous timeline.",
     "Use local Svelte state for filters in v0. Shareable URL state is not available yet.",
     "Apply a filter consistently to every metric that claims the filtered scope; label intentionally global metrics explicitly.",
+    "When a filter event triggers a query, read the event's selected value and pass it to the query function explicitly; do not rely on a derived SQL clause updating before the event handler runs.",
     "For a LineChart path animation, render Spline inside the marks snippet and use its draw prop (for example draw={reducedMotion ? false : { duration: 350 }}); do not use a CSS-only reveal or a motion prop on Spline.",
     "Use a 200–500ms LayerChart draw animation for the primary visualization when it first renders or meaningfully changes; avoid looping or decorative motion and respect prefers-reduced-motion.",
     "Use Tailwind utilities without adding a Tailwind config or CSS entry file.",
@@ -106,6 +107,7 @@ Author exactly these files: \`dashboard.svelte\` and \`queryloom.yaml\`. The CLI
 - Normalize values before display: \`Number(row.revenue)\`, \`String(row.month)\`.
 - Format dates and generate missing time buckets in SQL for continuous time-series charts.
 - Apply a filter consistently to every metric that claims the filtered scope. If a metric intentionally remains global, label it explicitly as global.
+- When a filter event launches a query, read the selected value from the event and pass it to the query function explicitly. Do not rely on a derived SQL clause updating before the event handler runs.
 
 ## State and charts
 
@@ -137,7 +139,8 @@ export function renderDesignGuide(format: GuideFormat = "markdown"): string {
   const designGuide = {
     version: 1,
     purpose: "Turn inspected local data into a concise dashboard plan before writing dashboard.svelte.",
-    requiredInput: "Inspect source files with queryloom inspect <file> --format json; after creating queryloom.yaml, inspect its declared resources with queryloom inspect --root . --format json.",
+    requiredInput:
+      "Inspect source files with queryloom inspect <file> --format json; after creating queryloom.yaml, inspect its declared resources with queryloom inspect --root . --format json.",
     process: [
       "State the decision or question this dashboard should answer in one sentence.",
       "Identify the grain of each inspected table, its measures, dimensions, and any reliable time field.",

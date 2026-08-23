@@ -2,9 +2,9 @@
 import path from "node:path";
 import { defineCommand, runMain } from "citty";
 import { loadProject } from "./config.js";
-import { renderDesignGuide, renderGuide, type GuideFormat, type GuidePhase } from "./guide.js";
+import { type GuideFormat, type GuidePhase, renderDesignGuide, renderGuide } from "./guide.js";
 import { initializeProject } from "./init.js";
-import { inspectPath, inspectResources, renderInspection, type InspectFormat } from "./inspect.js";
+import { type InspectFormat, inspectPath, inspectResources, renderInspection } from "./inspect.js";
 import { buildProject, startDev, startPreview } from "./vite.js";
 
 interface CliOptions {
@@ -84,7 +84,9 @@ const init = defineCommand({
   },
   async run({ args }) {
     await initializeProject(args.directory);
-    console.log(`Queryloom project created: ${path.resolve(args.directory)}\n\nNext:\n  cd ${args.directory}\n  bun install\n  bun run inspect -- data/<source>.csv --format json\n  bun run guide -- --phase design`);
+    console.log(
+      `Queryloom project created: ${path.resolve(args.directory)}\n\nNext:\n  cd ${args.directory}\n  bun install\n  bun run inspect -- data/<source>.csv --format json\n  bun run guide -- --phase design`,
+    );
   },
 });
 
@@ -115,7 +117,10 @@ const inspect = defineCommand({
   meta: { name: "inspect", description: "Inspect local CSV, Parquet, or DuckDB data with DuckDB-Wasm." },
   args: {
     file: { type: "positional" as const, description: "CSV, Parquet, or DuckDB file to inspect.", required: false },
-    root: { type: "string" as const, description: "Project directory; inspects queryloom.yaml resources when no file is given." },
+    root: {
+      type: "string" as const,
+      description: "Project directory; inspects queryloom.yaml resources when no file is given.",
+    },
     format: {
       type: "enum" as const,
       options: ["markdown", "json"],

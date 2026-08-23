@@ -20,13 +20,15 @@ Use Bun 1.3.14 and run commands from the repository root.
 | Preview the build | `bun run preview` |
 | Run all tests | `bun test` |
 | Type-check all workspaces | `bun run check` |
+| Check formatting and lint | `bun run style:check` |
+| Apply repository formatting | `bun run format` |
 | Package the CLI | `bun run --cwd packages/cli compile` |
 
-Run `bun test` and `bun run check` for every code change. Run `bun run build` when changing the CLI, runtime bundling, styling pipeline, or example dashboard.
+Run `bun test`, `bun run check`, and `bun run style:check` for every code change. Run `bun run build` when changing the CLI, runtime bundling, styling pipeline, or example dashboard.
 
 ## Coding Style & Naming Conventions
 
-- Use two-space indentation, semicolons, and double-quoted strings, matching existing TypeScript source.
+- Run Biome before committing; it enforces two-space indentation, semicolons, and double-quoted strings for TypeScript.
 - Use `camelCase` for functions and values, `PascalCase` for Svelte components and exported types, and `kebab-case` for package paths.
 - Use Svelte 5 runes (`$state`, `$derived`) for dashboard state. Keep independent dashboard sections independently queryable and give each local loading/error UI.
 - Dashboard SQL may reference only tables declared in its `queryloom.yaml`; normalize DuckDB query values before display.

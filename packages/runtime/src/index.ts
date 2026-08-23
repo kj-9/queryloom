@@ -11,10 +11,12 @@ export function configure(config: QueryloomConfig, options?: QueryloomRuntimeOpt
 /** Run SQL against the configured local DuckDB-Wasm database. */
 export async function query<T>(sql: string): Promise<readonly T[]> {
   if (!activeRuntime) {
-    throw new Error("Queryloom is not configured. The CLI-generated entry configures it before mounting the dashboard.");
+    throw new Error(
+      "Queryloom is not configured. The CLI-generated entry configures it before mounting the dashboard.",
+    );
   }
   return activeRuntime.query<T>(sql);
 }
 
-export { LocalDuckDBRuntime };
 export type { QueryloomConfig, QueryloomRuntimeOptions };
+export { LocalDuckDBRuntime };

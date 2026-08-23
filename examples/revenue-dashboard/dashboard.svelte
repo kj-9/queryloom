@@ -1,88 +1,111 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import { LineChart, Spline } from "layerchart";
-  import { query } from "@queryloom/library";
+import { query } from "@queryloom/library";
+import { LineChart, Spline } from "layerchart";
+import { onMount } from "svelte";
 
-  type RegionRow = { region: string };
-  type RevenueRow = { month: string; revenue: number };
-  type SummaryRow = { totalRevenue: number; averageMonthlyRevenue: number; latestMonth: string; latestMonthRevenue: number };
+type RegionRow = { region: string };
+type RevenueRow = { month: string; revenue: number };
+type SummaryRow = {
+  totalRevenue: number;
+  averageMonthlyRevenue: number;
+  latestMonth: string;
+  latestMonthRevenue: number;
+};
 
-  let selectedRegion = $state("All regions");
-  let regions = $state<string[]>([]);
-  let trendRows = $state<RevenueRow[]>([]);
-  let summary = $state<SummaryRow | null>(null);
-  let regionLoading = $state(true);
-  let trendLoading = $state(true);
-  let summaryLoading = $state(true);
-  let regionError = $state("");
-  let trendError = $state("");
-  let summaryError = $state("");
-  let reducedMotion = $state(false);
+let selectedRegion = $state("All regions");
+let regions = $state<string[]>([]);
+let trendRows = $state<RevenueRow[]>([]);
+let summary = $state<SummaryRow | null>(null);
+let regionLoading = $state(true);
+let trendLoading = $state(true);
+let summaryLoading = $state(true);
+let regionError = $state("");
+let trendError = $state("");
+let summaryError = $state("");
+let reducedMotion = $state(false);
 
-  const scopeLabel = $derived(selectedRegion === "All regions" ? "All regions" : selectedRegion);
-  const hasTrendData = $derived(trendRows.length > 0);
-  const number = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
+const scopeLabel = $derived(selectedRegion === "All regions" ? "All regions" : selectedRegion);
+const hasTrendData = $derived(trendRows.length > 0);
+const number = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
 
-  function whereClauseFor(region: string) {
-    return region === "All regions" ? "" : `WHERE region = '${region.replaceAll("'", "''")}'`;
+function whereClauseFor(region: string) {
+  return region === "All regions" ? "" : `WHERE region = '${region.replaceAll("'", "''")}'`;
+}
+
+async function loadRegions() {
+  regionLoading = true;
+  regionError = "";
+  try {
+    regions = (await query<RegionRow>("SELECT DISTINCT region FROM revenue ORDER BY region")).map((row) =>
+      String(row.region),
+    );
+  } catch (error) {
+    regionError = error instanceof Error ? error.message : "Unable to load regions.";
+  } finally {
+    regionLoading = false;
   }
+}
 
-  async function loadRegions() {
-    regionLoading = true;
-    regionError = "";
-    try {
-      regions = (await query<RegionRow>("SELECT DISTINCT region FROM revenue ORDER BY region")).map((row) => String(row.region));
-    } catch (error) {
-      regionError = error instanceof Error ? error.message : "Unable to load regions.";
-    } finally {
-      regionLoading = false;
-    }
+async function loadTrend(region: string) {
+  trendLoading = true;
+  trendError = "";
+  try {
+    const result = await query<RevenueRow>(
+      `SELECT month, SUM(revenue)::DOUBLE AS revenue FROM revenue ${whereClauseFor(region)} GROUP BY month ORDER BY month`,
+    );
+    trendRows = result.map((row) => ({ month: String(row.month), revenue: Number(row.revenue) }));
+  } catch (error) {
+    trendError = error instanceof Error ? error.message : "Unable to load the trend.";
+    trendRows = [];
+  } finally {
+    trendLoading = false;
   }
+}
 
-  async function loadTrend(region: string) {
-    trendLoading = true;
-    trendError = "";
-    try {
-      const result = await query<RevenueRow>(`SELECT month, SUM(revenue)::DOUBLE AS revenue FROM revenue ${whereClauseFor(region)} GROUP BY month ORDER BY month`);
-      trendRows = result.map((row) => ({ month: String(row.month), revenue: Number(row.revenue) }));
-    } catch (error) {
-      trendError = error instanceof Error ? error.message : "Unable to load the trend.";
-      trendRows = [];
-    } finally {
-      trendLoading = false;
-    }
+async function loadSummary(region: string) {
+  summaryLoading = true;
+  summaryError = "";
+  try {
+    const result = await query<SummaryRow>(
+      `WITH monthly AS (SELECT month, SUM(revenue)::DOUBLE AS revenue FROM revenue ${whereClauseFor(region)} GROUP BY month), ranked AS (SELECT month, revenue, ROW_NUMBER() OVER (ORDER BY month DESC) AS row_number FROM monthly) SELECT SUM(revenue)::DOUBLE AS totalRevenue, AVG(revenue)::DOUBLE AS averageMonthlyRevenue, MAX(CASE WHEN row_number = 1 THEN month END) AS latestMonth, MAX(CASE WHEN row_number = 1 THEN revenue END)::DOUBLE AS latestMonthRevenue FROM ranked`,
+    );
+    const row = result[0];
+    summary = row
+      ? {
+          totalRevenue: Number(row.totalRevenue),
+          averageMonthlyRevenue: Number(row.averageMonthlyRevenue),
+          latestMonth: String(row.latestMonth),
+          latestMonthRevenue: Number(row.latestMonthRevenue),
+        }
+      : null;
+  } catch (error) {
+    summaryError = error instanceof Error ? error.message : "Unable to load the summary.";
+    summary = null;
+  } finally {
+    summaryLoading = false;
   }
+}
 
-  async function loadSummary(region: string) {
-    summaryLoading = true;
-    summaryError = "";
-    try {
-      const result = await query<SummaryRow>(`WITH monthly AS (SELECT month, SUM(revenue)::DOUBLE AS revenue FROM revenue ${whereClauseFor(region)} GROUP BY month), ranked AS (SELECT month, revenue, ROW_NUMBER() OVER (ORDER BY month DESC) AS row_number FROM monthly) SELECT SUM(revenue)::DOUBLE AS totalRevenue, AVG(revenue)::DOUBLE AS averageMonthlyRevenue, MAX(CASE WHEN row_number = 1 THEN month END) AS latestMonth, MAX(CASE WHEN row_number = 1 THEN revenue END)::DOUBLE AS latestMonthRevenue FROM ranked`);
-      const row = result[0];
-      summary = row ? { totalRevenue: Number(row.totalRevenue), averageMonthlyRevenue: Number(row.averageMonthlyRevenue), latestMonth: String(row.latestMonth), latestMonthRevenue: Number(row.latestMonthRevenue) } : null;
-    } catch (error) {
-      summaryError = error instanceof Error ? error.message : "Unable to load the summary.";
-      summary = null;
-    } finally {
-      summaryLoading = false;
-    }
-  }
-
-  function refreshMetrics(region: string) { void loadTrend(region); void loadSummary(region); }
-  function handleRegionChange(event: Event) {
-    const region = (event.currentTarget as HTMLSelectElement).value;
-    selectedRegion = region;
-    refreshMetrics(region);
-  }
-  onMount(() => {
-    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const updateMotionPreference = () => { reducedMotion = mediaQuery.matches; };
-    updateMotionPreference();
-    mediaQuery.addEventListener("change", updateMotionPreference);
-    void loadRegions();
-    refreshMetrics(selectedRegion);
-    return () => mediaQuery.removeEventListener("change", updateMotionPreference);
-  });
+function refreshMetrics(region: string) {
+  void loadTrend(region);
+  void loadSummary(region);
+}
+function handleRegionChange(event: Event) {
+  const region = (event.currentTarget as HTMLSelectElement).value;
+  selectedRegion = region;
+  refreshMetrics(region);
+}
+onMount(() => {
+  const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const updateMotionPreference = () => {
+    reducedMotion = mediaQuery.matches;
+  };
+  updateMotionPreference();
+  mediaQuery.addEventListener("change", updateMotionPreference);
+  void loadRegions();
+  refreshMetrics(selectedRegion);
+  return () => mediaQuery.removeEventListener("change", updateMotionPreference);
+});
 </script>
 
 <svelte:head><title>Revenue pulse</title><meta name="description" content="A region-scoped monthly revenue dashboard." /></svelte:head>

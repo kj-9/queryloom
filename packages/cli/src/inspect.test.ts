@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { test } from "node:test";
-import { inspectResources, renderInspection } from "./inspect.js";
+import { inspectPath, inspectResources, renderInspection } from "./inspect.js";
 
 const exampleDir = path.resolve(import.meta.dirname, "../../../examples/revenue-dashboard");
 
@@ -10,8 +10,24 @@ test("inspects a configured CSV resource through DuckDB-Wasm", { timeout: 20_000
   const table = inspection.resources[0]?.tables[0];
 
   assert.equal(table?.rowCount, 12);
-  assert.deepEqual(table?.columns.map((column) => column.name), ["month", "region", "revenue"]);
+  assert.deepEqual(
+    table?.columns.map((column) => column.name),
+    ["month", "region", "revenue"],
+  );
   assert.equal(table?.columns.find((column) => column.name === "revenue")?.minimum, 31000);
   assert.equal(table?.sample.length, 5);
   assert.match(renderInspection(inspection, "markdown"), /12 rows/);
+});
+
+test("inspects a persisted DuckDB database through DuckDB-Wasm", { timeout: 20_000 }, async () => {
+  const inspection = await inspectPath(path.resolve(import.meta.dirname, "fixtures/inspect.duckdb"));
+  const table = inspection.resources[0]?.tables[0];
+
+  assert.equal(table?.name, "orders");
+  assert.equal(table?.rowCount, 2);
+  assert.deepEqual(
+    table?.columns.map((column) => column.name),
+    ["order_id", "region", "amount"],
+  );
+  assert.equal(table?.columns.find((column) => column.name === "amount")?.average, 100.25);
 });

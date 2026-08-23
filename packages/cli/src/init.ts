@@ -3,7 +3,11 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 function packageName(directory: string): string {
-  const normalized = path.basename(directory).toLowerCase().replaceAll(/[^a-z0-9]+/g, "-").replaceAll(/^-|-$/g, "");
+  const normalized = path
+    .basename(directory)
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9]+/g, "-")
+    .replaceAll(/^-|-$/g, "");
   return normalized || "queryloom-dashboard";
 }
 
@@ -44,8 +48,14 @@ export async function initializeProject(directory: string): Promise<void> {
   await mkdir(path.join(projectDir, "data"), { recursive: true });
   await Promise.all([
     writeFile(path.join(projectDir, ".gitignore"), "node_modules/\ndist/\n.queryloom/\n.DS_Store\n"),
-    writeFile(path.join(projectDir, "dashboard.svelte"), "<!-- Ask an Agent to implement this Queryloom dashboard. -->\n"),
-    writeFile(path.join(projectDir, "queryloom.yaml"), "# Inspect source files first with: bun run inspect -- data/source.csv --format json\n# Then declare local CSV or Parquet resources for this dashboard.\nresources: []\n"),
+    writeFile(
+      path.join(projectDir, "dashboard.svelte"),
+      "<!-- Ask an Agent to implement this Queryloom dashboard. -->\n",
+    ),
+    writeFile(
+      path.join(projectDir, "queryloom.yaml"),
+      "# Inspect source files first with: bun run inspect -- data/source.csv --format json\n# Then declare local CSV or Parquet resources for this dashboard.\nresources: []\n",
+    ),
     writeFile(path.join(projectDir, "data", ".gitkeep"), ""),
     writeFile(path.join(projectDir, "package.json"), packageJson(projectDir)),
   ]);
