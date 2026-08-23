@@ -1,3 +1,4 @@
+version: 1
 resources:
   - name: revenue
     path: data/revenue.csv

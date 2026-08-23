@@ -6,6 +6,7 @@ test("renders the agent guide as markdown and JSON", () => {
   assert.match(renderGuide(), /Queryloom dashboard guide/);
   assert.match(renderGuide(), /Visual direction/);
   assert.match(renderGuide(), /#0777b3/);
+  assert.match(renderGuide(), /marks.*snippet/);
   assert.deepEqual(JSON.parse(renderGuide("json")), guide);
 });
 

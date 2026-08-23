@@ -134,6 +134,10 @@ function layerchartAlias(): string {
   return fileURLToPath(import.meta.resolve("layerchart"));
 }
 
+function tailwindAlias(): string {
+  return fileURLToPath(import.meta.resolve("tailwindcss/index.css"));
+}
+
 export function viteConfig(project: { projectDir: string; dashboardPath: string; config: QueryloomConfig }, command: "serve" | "build", options: { outDir?: string } = {}): InlineConfig {
   return {
     configFile: false,
@@ -141,7 +145,7 @@ export function viteConfig(project: { projectDir: string; dashboardPath: string;
     base: "./",
     plugins: [tailwindcss(), svelte({ compilerOptions: { dev: command === "serve" } }), queryloomPlugin(project)],
     resolve: {
-      alias: { "@queryloom/library": libraryAlias(), layerchart: layerchartAlias() },
+      alias: { "@queryloom/library": libraryAlias(), layerchart: layerchartAlias(), tailwindcss: tailwindAlias() },
       dedupe: ["svelte"],
     },
     optimizeDeps: {

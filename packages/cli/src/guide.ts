@@ -49,7 +49,8 @@ export const guide = {
     "Format dates and fill missing time buckets in SQL when a chart needs a continuous timeline.",
     "Use local Svelte state for filters in v0. Shareable URL state is not available yet.",
     "Apply a filter consistently to every metric that claims the filtered scope; label intentionally global metrics explicitly.",
-    "Use a 200–500ms LayerChart motion for the primary visualization when it first renders or meaningfully changes; avoid looping or decorative motion and respect prefers-reduced-motion.",
+    "For a LineChart path animation, render Spline inside the marks snippet and use its draw prop (for example draw={reducedMotion ? false : { duration: 350 }}); do not use a CSS-only reveal or a motion prop on Spline.",
+    "Use a 200–500ms LayerChart draw animation for the primary visualization when it first renders or meaningfully changes; avoid looping or decorative motion and respect prefers-reduced-motion.",
     "Use Tailwind utilities without adding a Tailwind config or CSS entry file.",
     "Use <style> only for component-specific styling that is awkward as utilities.",
   ],
@@ -111,7 +112,7 @@ Author exactly these files: \`dashboard.svelte\` and \`queryloom.yaml\`. The CLI
 - Use Svelte 5 runes (\`$state\`, \`$derived\`) for dashboard state and derived values. Use local state for filters in v0; shareable URL state is not available yet.
 - Compose visualizations directly with generic LayerChart components imported from \`layerchart\`; do not add domain-specific chart wrappers such as \`RevenueTrend\` to the library.
 - Use the official LayerChart LLM documentation for component details: \`https://next.layerchart.com/llms.txt\`.
-- Give the primary visualization a short, meaningful 200–500ms LayerChart motion on first render or data/filter changes. For time-series, a one-time path draw is appropriate. Do not use looping or decorative motion, and respect \`prefers-reduced-motion\`. See \`https://next.layerchart.com/docs/guides/animation\`.
+- Give the primary visualization a short, meaningful 200–500ms LayerChart motion on first render or data/filter changes. For a line chart, render \`Spline\` in the \`marks\` snippet and use its \`draw\` prop; do not substitute a CSS reveal or a \`motion\` prop on \`Spline\`. For time-series, a one-time path draw is appropriate. Do not use looping or decorative motion, and respect \`prefers-reduced-motion\`. See \`https://next.layerchart.com/docs/guides/animation\`.
 
 ## Visual direction
 
