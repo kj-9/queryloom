@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 import path from "node:path";
-import { buildProject, startDev, startPreview } from "./vite.js";
+import { defineCommand, runMain } from "citty";
 import { loadProject } from "./config.js";
 import { renderGuide, type GuideFormat } from "./guide.js";
 import { initializeProject } from "./init.js";
+import { buildProject, startDev, startPreview } from "./vite.js";
 
 interface CliOptions {
   root: string;
@@ -13,73 +14,101 @@ interface CliOptions {
   outDir?: string;
 }
 
-function help(): void {
-  console.log(`Queryloom v0
+function projectOptions(args: {
+  root?: string;
+  host?: string;
+  port?: string;
+  strictPort?: boolean;
+  outDir?: string;
+}): CliOptions {
+  const port = args.port === undefined ? undefined : Number(args.port);
+  if (port !== undefined && (!Number.isInteger(port) || port < 1 || port > 65535)) {
+    throw new Error(`Invalid port: ${args.port}`);
+  }
 
-Usage:
-  queryloom dev [--root <dir>] [--host <host>] [--port <port>]
-  queryloom build [--root <dir>] [--outDir <dir>]
-  queryloom preview [--root <dir>] [--host <host>] [--port <port>]
-  queryloom init <directory>
-  queryloom guide [--format markdown|json]
-
-A project contains dashboard.svelte, queryloom.yaml, and local CSV/Parquet resources.`);
+  return {
+    root: path.resolve(args.root ?? process.cwd()),
+    host: args.host,
+    port,
+    strictPort: args.strictPort,
+    outDir: args.outDir === undefined ? undefined : path.resolve(args.outDir),
+  };
 }
 
-function parseGuideFormat(args: string[]): GuideFormat {
-  if (args.length === 0) return "markdown";
-  if (args.length === 1 && (args[0] === "--help" || args[0] === "-h")) {
-    console.log("Usage: queryloom guide [--format markdown|json]");
-    process.exit(0);
-  }
-  if (args.length === 2 && args[0] === "--format" && (args[1] === "markdown" || args[1] === "json")) return args[1];
-  throw new Error("Usage: queryloom guide [--format markdown|json]");
-}
+const projectArgs = {
+  root: { type: "string" as const, description: "Dashboard project directory." },
+  host: { type: "string" as const, description: "Host interface to bind." },
+  port: { type: "string" as const, description: "Port to bind." },
+  strictPort: { type: "boolean" as const, description: "Fail instead of choosing another port." },
+};
 
-function parseOptions(args: string[]): CliOptions {
-  const options: CliOptions = { root: process.cwd() };
-  for (let index = 0; index < args.length; index += 1) {
-    const arg = args[index];
-    const next = args[index + 1];
-    if (arg === "--root" && next) options.root = path.resolve(next), index += 1;
-    else if (arg === "--host" && next) options.host = next, index += 1;
-    else if (arg === "--port" && next) options.port = Number(next), index += 1;
-    else if (arg === "--outDir" && next) options.outDir = path.resolve(next), index += 1;
-    else if (arg === "--strictPort") options.strictPort = true;
-    else if (arg === "--help" || arg === "-h") help(), process.exit(0);
-    else throw new Error(`Unknown option: ${arg}`);
-  }
-  if (options.port !== undefined && (!Number.isInteger(options.port) || options.port < 1 || options.port > 65535)) {
-    throw new Error(`Invalid port: ${options.port}`);
-  }
-  return options;
-}
-
-async function main(): Promise<void> {
-  const [command = "help", ...args] = process.argv.slice(2);
-  if (command === "help" || command === "--help" || command === "-h") return help();
-  if (command === "guide") return console.log(renderGuide(parseGuideFormat(args)).trimEnd());
-  if (command === "init") {
-    if (args.length !== 1 || args[0] === "--help" || args[0] === "-h") {
-      if (args.length === 1) console.log("Usage: queryloom init <directory>");
-      else throw new Error("Usage: queryloom init <directory>");
-      return;
-    }
-    await initializeProject(args[0]);
-    console.log(`Queryloom project created: ${path.resolve(args[0])}\n\nNext:\n  cd ${args[0]}\n  bun install\n  bun run guide  # give this output to your Agent`);
-    return;
-  }
-  if (!new Set(["dev", "build", "preview"]).has(command)) throw new Error(`Unknown command: ${command}`);
-
-  const options = parseOptions(args);
-  const project = await loadProject(options.root);
-  if (command === "dev") return startDev(project, options);
-  if (command === "preview") return startPreview(project.projectDir, options);
-  await buildProject(project, options.outDir);
-  console.log(`Queryloom build complete: ${options.outDir ?? path.join(project.projectDir, "dist")}`);
-}
-
-main().catch((error: unknown) => {
-  console.error(`Queryloom: ${error instanceof Error ? error.message : String(error)}`);
-  process.exitCode = 1;
+const dev = defineCommand({
+  meta: { name: "dev", description: "Start a dashboard development server." },
+  args: projectArgs,
+  async run({ args }) {
+    const options = projectOptions(args);
+    const project = await loadProject(options.root);
+    await startDev(project, options);
+  },
 });
+
+const build = defineCommand({
+  meta: { name: "build", description: "Build a deployable static dashboard." },
+  args: {
+    ...projectArgs,
+    outDir: { type: "string" as const, description: "Output directory. Defaults to <root>/dist." },
+  },
+  async run({ args }) {
+    const options = projectOptions(args);
+    const project = await loadProject(options.root);
+    await buildProject(project, options.outDir);
+    console.log(`Queryloom build complete: ${options.outDir ?? path.join(project.projectDir, "dist")}`);
+  },
+});
+
+const preview = defineCommand({
+  meta: { name: "preview", description: "Preview a built static dashboard." },
+  args: projectArgs,
+  async run({ args }) {
+    const options = projectOptions(args);
+    const project = await loadProject(options.root);
+    await startPreview(project.projectDir, options);
+  },
+});
+
+const init = defineCommand({
+  meta: { name: "init", description: "Create an empty, Agent-ready dashboard project." },
+  args: {
+    directory: { type: "positional" as const, description: "Directory to create.", required: true },
+  },
+  async run({ args }) {
+    await initializeProject(args.directory);
+    console.log(`Queryloom project created: ${path.resolve(args.directory)}\n\nNext:\n  cd ${args.directory}\n  bun install\n  bun run guide  # give this output to your Agent`);
+  },
+});
+
+const guide = defineCommand({
+  meta: { name: "guide", description: "Print instructions for authoring a dashboard with an Agent." },
+  args: {
+    format: {
+      type: "enum" as const,
+      options: ["markdown", "json"],
+      default: "markdown",
+      description: "Output format.",
+    },
+  },
+  run({ args }) {
+    console.log(renderGuide(args.format as GuideFormat).trimEnd());
+  },
+});
+
+const command = defineCommand({
+  meta: {
+    name: "queryloom",
+    version: "0.1.0",
+    description: "Create and ship local-data Svelte dashboards with an Agent.",
+  },
+  subCommands: { dev, build, preview, init, guide },
+});
+
+runMain(command);

@@ -44,6 +44,18 @@ bunx @queryloom/cli guide
 
 Node.js 環境では `npx @queryloom/cli` でも同じ CLI を実行できることを配布要件とする。
 
+### リポジトリ内でCLIを試す
+
+公開前のCLIは、リポジトリ直下からそのまま実行できる。
+
+```bash
+bun run queryloom -- guide
+bun run queryloom -- dev --root examples/revenue-dashboard
+bun run queryloom -- build --root examples/revenue-dashboard
+```
+
+グローバルコマンドとして試す場合は、`bun run cli:link` を一度実行する。これはCLIをコンパイルしてローカルにリンクするため、その後は `queryloom guide` のように任意のディレクトリから実行できる。
+
 `queryloom guide --format json` は、Agent がダッシュボードを実装する際の実行契約・利用可能なAPI・SQL・Loading・Tailwindの規約を返す。加えて、コンパクトなData Appの構成と標準カラーパレットを示す。これはUIを強制するデザインシステムではなく、最初の一画面を一貫して作るための指針である。ガイドはCLIに内蔵され、Dashboard作成者が管理するファイルを増やさない。
 
 `queryloom init <directory>` はAgent用の空プロジェクトを作る。生成するのは実行用の`package.json`、空の`data/`、そしてAgentが埋める`dashboard.svelte`・`queryloom.yaml`だけであり、完成済みDashboardのテンプレートは配らない。

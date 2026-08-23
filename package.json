@@ -10,6 +10,9 @@
     "dev": "bun run --cwd packages/cli dev -- --root ../../examples/revenue-dashboard",
     "build": "bun run --cwd packages/cli build -- --root ../../examples/revenue-dashboard",
     "preview": "bun run --cwd packages/cli preview -- --root ../../examples/revenue-dashboard",
+    "queryloom": "bun packages/cli/src/index.ts",
+    "cli:compile": "bun run --cwd packages/cli compile",
+    "cli:link": "bun run cli:compile && bun link --cwd packages/cli",
     "test": "bun --workspaces test",
     "check": "bun --workspaces run check"
   },
