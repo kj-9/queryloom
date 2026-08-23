@@ -1,4 +1,5 @@
 export type GuideFormat = "markdown" | "json";
+export type GuidePhase = "build" | "design";
 
 export const guide = {
   version: 3,
@@ -128,5 +129,47 @@ Prefer restrained borders, a single primary accent, and an aligned KPI summary o
 ## Boundaries
 
 This version supports only local CSV/Parquet resources and browser-local SQL. Do not add remote connectors, authentication, external scripts/stylesheets, dynamic npm imports, routing, or publishing controls.
+`;
+}
+
+export function renderDesignGuide(format: GuideFormat = "markdown"): string {
+  const designGuide = {
+    version: 1,
+    purpose: "Turn inspected local data into a concise dashboard plan before writing dashboard.svelte.",
+    requiredInput: "Inspect source files with queryloom inspect <file> --format json; after creating queryloom.yaml, inspect its declared resources with queryloom inspect --root . --format json.",
+    process: [
+      "State the decision or question this dashboard should answer in one sentence.",
+      "Identify the grain of each inspected table, its measures, dimensions, and any reliable time field.",
+      "Define 2–4 KPIs and one primary chart. Every metric must name its source table, aggregation, time range, and filter scope.",
+      "Choose only filters supported by inspected columns. Do not invent columns, joins, targets, or business meanings.",
+      "Call out data-quality caveats visible in nulls, cardinality, ranges, or samples.",
+      "Then create queryloom.yaml and dashboard.svelte. Follow queryloom guide for the implementation phase.",
+    ],
+    boundaries: [
+      "Inspection is read-only and local.",
+      "Inspect CSV, Parquet, or DuckDB files locally. Dashboard resources in v0 must be CSV or Parquet.",
+      "Do not make up metric definitions from column names alone; state uncertainty instead.",
+    ],
+  } as const;
+
+  if (format === "json") return `${JSON.stringify(designGuide, null, 2)}\n`;
+  return `# Queryloom data-design guide
+
+Before writing a dashboard, inspect every source file with \`queryloom inspect <file> --format json\` and use the complete output as evidence. After declaring CSV or Parquet resources in \`queryloom.yaml\`, run \`queryloom inspect --root . --format json\` to verify the project-facing table names. Inspection is local and read-only.
+
+## Required design process
+
+1. State the single decision or question this dashboard answers.
+2. Identify each table's grain, measures, dimensions, and reliable time field from the inspection output.
+3. Define 2–4 KPIs and one primary chart. For every metric, name its source table, aggregation, time range, and filter scope.
+4. Choose only filters supported by inspected columns. Do not invent joins, targets, columns, or business meanings.
+5. Name data-quality caveats visible in null counts, cardinality, ranges, or sample rows.
+6. Then author \`queryloom.yaml\` and \`dashboard.svelte\`; use \`queryloom guide\` for Svelte, SQL, visual, and animation rules.
+
+## Boundaries
+
+- Treat inspection as evidence, not a semantic layer. If a column's meaning is uncertain, say so.
+- Keep the plan compact: one question, a small KPI set, and one primary visualization.
+- \`.duckdb\` files can be inspected, but v0 dashboards declare local CSV or Parquet resources only.
 `;
 }

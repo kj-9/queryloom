@@ -32,6 +32,10 @@ bunx @queryloom/cli init sales-dashboard
 cd sales-dashboard
 bun install
 
+# Agentが最初にデータを把握・設計する
+bun run inspect -- data/sales.csv --format json
+bun run guide -- --phase design
+
 # Agent が dashboard.svelte と queryloom.yaml を実装した後に実行する
 bun run dev
 
@@ -40,11 +44,14 @@ bunx @queryloom/cli dev
 bunx @queryloom/cli build
 bunx @queryloom/cli preview
 bunx @queryloom/cli guide
+bunx @queryloom/cli inspect data/sales.csv --format json
 ```
 
 Node.js 環境では `npx @queryloom/cli` でも同じ CLI を実行できることを配布要件とする。
 
-`queryloom guide --format json` は、Agent がダッシュボードを実装する際の実行契約・利用可能なAPI・SQL・Loading・Tailwindの規約を返す。加えて、コンパクトなData Appの構成と標準カラーパレットを示す。これはUIを強制するデザインシステムではなく、最初の一画面を一貫して作るための指針である。ガイドはCLIに内蔵され、Dashboard作成者が管理するファイルを増やさない。
+`queryloom inspect <file> --format json` は、CSV / Parquet / `.duckdb` をローカルでDuckDB-Wasmに読み込み、テーブル・列型・行数・NULL数・概算distinct数・数値/時系列の範囲・先頭5行を返す。Agentはこの出力を根拠に設計する。`queryloom inspect --root .` は、`queryloom.yaml`で宣言済みの全リソースを同じ形式で確認する。
+
+`queryloom guide --phase design` はデータの粒度、指標、フィルタ、品質上の注意を先に設計させるためのガイドである。`queryloom guide --format json` は、その設計を受けてDashboardを実装する際の実行契約・利用可能なAPI・SQL・Loading・Tailwindの規約を返す。加えて、コンパクトなData Appの構成と標準カラーパレットを示す。いずれもCLIに内蔵され、Dashboard作成者が管理するファイルを増やさない。
 
 `queryloom init <directory>` はAgent用の空プロジェクトを作る。生成するのは実行用の`package.json`、空の`data/`、そしてAgentが埋める`dashboard.svelte`・`queryloom.yaml`だけであり、完成済みDashboardのテンプレートは配らない。
 
@@ -58,7 +65,7 @@ resources:
     path: ./data/sales.parquet
 ```
 
-CSV と Parquet を扱う。ファイル形式は拡張子で判定し、`resources` のキー（上例では `sales`）を Svelte 側の SQL テーブル名として参照する。配列形式を使う場合は `name` を指定する。
+Dashboardが扱うのはCSVとParquetである。ファイル形式は拡張子で判定し、`resources` のキー（上例では `sales`）を Svelte 側の SQL テーブル名として参照する。配列形式を使う場合は `name` を指定する。`.duckdb` は設計時のinspect対象にはできるが、v0のブラウザDashboardのresourceにはまだ宣言しない。
 
 ## Dashboard
 

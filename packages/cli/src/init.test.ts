@@ -15,7 +15,7 @@ test("initializes an empty agent-ready dashboard project without overwriting", a
 
     assert.equal(existsSync(path.join(project, "data", ".gitkeep")), true);
     assert.match(await readFile(path.join(project, "dashboard.svelte"), "utf8"), /Ask an Agent/);
-    assert.match(await readFile(path.join(project, "queryloom.yaml"), "utf8"), /resources: \[\]/);
+    assert.match(await readFile(path.join(project, "queryloom.yaml"), "utf8"), /bun run inspect/);
     assert.deepEqual(JSON.parse(await readFile(path.join(project, "package.json"), "utf8")), {
       name: "sales-dashboard",
       private: true,
@@ -25,6 +25,7 @@ test("initializes an empty agent-ready dashboard project without overwriting", a
         build: "queryloom build",
         preview: "queryloom preview",
         guide: "queryloom guide",
+        inspect: "queryloom inspect",
       },
       devDependencies: { "@queryloom/cli": "^0.1.0" },
       dependencies: {

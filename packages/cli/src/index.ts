@@ -2,8 +2,9 @@
 import path from "node:path";
 import { buildProject, startDev, startPreview } from "./vite.js";
 import { loadProject } from "./config.js";
-import { renderGuide, type GuideFormat } from "./guide.js";
+import { renderDesignGuide, renderGuide, type GuideFormat, type GuidePhase } from "./guide.js";
 import { initializeProject } from "./init.js";
+import { inspectPath, inspectResources, renderInspection, type InspectFormat } from "./inspect.js";
 
 interface CliOptions {
   root: string;
@@ -21,19 +22,43 @@ Usage:
   queryloom build [--root <dir>] [--outDir <dir>]
   queryloom preview [--root <dir>] [--host <host>] [--port <port>]
   queryloom init <directory>
-  queryloom guide [--format markdown|json]
+  queryloom guide [--phase build|design] [--format markdown|json]
+  queryloom inspect [<file>] [--root <dir>] [--format markdown|json]
 
 A project contains dashboard.svelte, queryloom.yaml, and local CSV/Parquet resources.`);
 }
 
-function parseGuideFormat(args: string[]): GuideFormat {
-  if (args.length === 0) return "markdown";
-  if (args.length === 1 && (args[0] === "--help" || args[0] === "-h")) {
-    console.log("Usage: queryloom guide [--format markdown|json]");
-    process.exit(0);
+function parseGuideOptions(args: string[]): { format: GuideFormat; phase: GuidePhase } {
+  const result: { format: GuideFormat; phase: GuidePhase } = { format: "markdown", phase: "build" };
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    const next = args[index + 1];
+    if ((arg === "--help" || arg === "-h") && args.length === 1) {
+      console.log("Usage: queryloom guide [--phase build|design] [--format markdown|json]");
+      process.exit(0);
+    }
+    if (arg === "--format" && (next === "markdown" || next === "json")) result.format = next, index += 1;
+    else if (arg === "--phase" && (next === "build" || next === "design")) result.phase = next, index += 1;
+    else throw new Error("Usage: queryloom guide [--phase build|design] [--format markdown|json]");
   }
-  if (args.length === 2 && args[0] === "--format" && (args[1] === "markdown" || args[1] === "json")) return args[1];
-  throw new Error("Usage: queryloom guide [--format markdown|json]");
+  return result;
+}
+
+function parseInspectOptions(args: string[]): { file?: string; format: InspectFormat; root: string } {
+  const result: { file?: string; format: InspectFormat; root: string } = { format: "markdown", root: process.cwd() };
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    const next = args[index + 1];
+    if ((arg === "--help" || arg === "-h") && args.length === 1) {
+      console.log("Usage: queryloom inspect [<file>] [--root <dir>] [--format markdown|json]");
+      process.exit(0);
+    }
+    if (arg === "--format" && (next === "markdown" || next === "json")) result.format = next, index += 1;
+    else if (arg === "--root" && next) result.root = path.resolve(next), index += 1;
+    else if (!arg.startsWith("-") && result.file === undefined) result.file = arg;
+    else throw new Error("Usage: queryloom inspect [<file>] [--root <dir>] [--format markdown|json]");
+  }
+  return result;
 }
 
 function parseOptions(args: string[]): CliOptions {
@@ -58,7 +83,18 @@ function parseOptions(args: string[]): CliOptions {
 async function main(): Promise<void> {
   const [command = "help", ...args] = process.argv.slice(2);
   if (command === "help" || command === "--help" || command === "-h") return help();
-  if (command === "guide") return console.log(renderGuide(parseGuideFormat(args)).trimEnd());
+  if (command === "guide") {
+    const options = parseGuideOptions(args);
+    return console.log((options.phase === "design" ? renderDesignGuide(options.format) : renderGuide(options.format)).trimEnd());
+  }
+  if (command === "inspect") {
+    const options = parseInspectOptions(args);
+    const inspection = options.file ? await inspectPath(options.file) : await (async () => {
+      const project = await loadProject(options.root);
+      return inspectResources(project.projectDir, project.config.resources);
+    })();
+    return console.log(renderInspection(inspection, options.format).trimEnd());
+  }
   if (command === "init") {
     if (args.length !== 1 || args[0] === "--help" || args[0] === "-h") {
       if (args.length === 1) console.log("Usage: queryloom init <directory>");
@@ -66,7 +102,7 @@ async function main(): Promise<void> {
       return;
     }
     await initializeProject(args[0]);
-    console.log(`Queryloom project created: ${path.resolve(args[0])}\n\nNext:\n  cd ${args[0]}\n  bun install\n  bun run guide  # give this output to your Agent`);
+    console.log(`Queryloom project created: ${path.resolve(args[0])}\n\nNext:\n  cd ${args[0]}\n  bun install\n  bun run inspect -- data/<source>.csv --format json\n  bun run guide -- --phase design`);
     return;
   }
   if (!new Set(["dev", "build", "preview"]).has(command)) throw new Error(`Unknown command: ${command}`);

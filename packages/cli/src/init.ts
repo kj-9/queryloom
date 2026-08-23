@@ -18,6 +18,7 @@ function packageJson(directory: string): string {
         build: "queryloom build",
         preview: "queryloom preview",
         guide: "queryloom guide",
+        inspect: "queryloom inspect",
       },
       devDependencies: {
         "@queryloom/cli": "^0.1.0",
@@ -44,7 +45,7 @@ export async function initializeProject(directory: string): Promise<void> {
   await Promise.all([
     writeFile(path.join(projectDir, ".gitignore"), "node_modules/\ndist/\n.queryloom/\n.DS_Store\n"),
     writeFile(path.join(projectDir, "dashboard.svelte"), "<!-- Ask an Agent to implement this Queryloom dashboard. -->\n"),
-    writeFile(path.join(projectDir, "queryloom.yaml"), "# Declare local CSV or Parquet resources for this dashboard.\nresources: []\n"),
+    writeFile(path.join(projectDir, "queryloom.yaml"), "# Inspect source files first with: bun run inspect -- data/source.csv --format json\n# Then declare local CSV or Parquet resources for this dashboard.\nresources: []\n"),
     writeFile(path.join(projectDir, "data", ".gitkeep"), ""),
     writeFile(path.join(projectDir, "package.json"), packageJson(projectDir)),
   ]);
