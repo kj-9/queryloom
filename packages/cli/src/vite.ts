@@ -14,7 +14,7 @@ const virtualStylesUrl = "/@queryloom/tailwind.css";
 
 function generatedEntry(project: { dashboardPath: string; config: QueryloomConfig }): string {
   return `import ${JSON.stringify(virtualStylesUrl)};
-import { configure } from "@queryloom/runtime";
+import { configure } from "@queryloom/library";
 import Dashboard from ${JSON.stringify(pathToFileURL(project.dashboardPath).href)};
 import { mount } from "svelte";
 
@@ -36,6 +36,14 @@ function generatedStyles(project: { dashboardPath: string }): string {
     color: var(--color-slate-900);
     font-family: var(--font-sans);
   }
+
+  .lc-root-container {
+    --color-primary: #0777b3;
+    --color-surface-100: #ffffff;
+    --color-surface-200: #f8f8f8;
+    --color-surface-300: #e1e1e1;
+    --color-surface-content: #231f20;
+  }
 }
 `;
 }
@@ -52,7 +60,12 @@ function documentHtml(entryFileName: string, stylesheetFileName?: string): strin
 function svelteClientImport(source: string): string | undefined {
   const svelteRoot = fileURLToPath(new URL("../node_modules/svelte/src/", import.meta.url));
   if (source === "svelte") return path.join(svelteRoot, "index-client.js");
+  if (source === "svelte/easing") return path.join(svelteRoot, "easing/index.js");
+  if (source === "svelte/events") return path.join(svelteRoot, "events/index.js");
+  if (source === "svelte/motion") return path.join(svelteRoot, "motion/index.js");
+  if (source === "svelte/reactivity") return path.join(svelteRoot, "reactivity/index-client.js");
   if (source === "svelte/store") return path.join(svelteRoot, "store/index-client.js");
+  if (source === "svelte/transition") return path.join(svelteRoot, "transition/index.js");
   if (source === "svelte/internal/client") return path.join(svelteRoot, "internal/client/index.js");
   if (source === "svelte/internal/disclose-version") return path.join(svelteRoot, "internal/disclose-version.js");
   if (source.startsWith("svelte/internal/")) return path.join(svelteRoot, `${source.slice("svelte/".length)}.js`);
@@ -112,9 +125,13 @@ function queryloomPlugin(project: { projectDir: string; dashboardPath: string; c
   };
 }
 
-function runtimeAlias(): string {
+function libraryAlias(): string {
   const sourcePath = fileURLToPath(new URL("../../runtime/src/index.ts", import.meta.url));
-  return existsSync(sourcePath) ? sourcePath : fileURLToPath(import.meta.resolve("@queryloom/runtime"));
+  return existsSync(sourcePath) ? sourcePath : fileURLToPath(import.meta.resolve("@queryloom/library"));
+}
+
+function layerchartAlias(): string {
+  return fileURLToPath(import.meta.resolve("layerchart"));
 }
 
 export function viteConfig(project: { projectDir: string; dashboardPath: string; config: QueryloomConfig }, command: "serve" | "build", options: { outDir?: string } = {}): InlineConfig {
@@ -124,11 +141,11 @@ export function viteConfig(project: { projectDir: string; dashboardPath: string;
     base: "./",
     plugins: [tailwindcss(), svelte({ compilerOptions: { dev: command === "serve" } }), queryloomPlugin(project)],
     resolve: {
-      alias: { "@queryloom/runtime": runtimeAlias() },
+      alias: { "@queryloom/library": libraryAlias(), layerchart: layerchartAlias() },
       dedupe: ["svelte"],
     },
     optimizeDeps: {
-      exclude: ["layercake"],
+      exclude: ["layerchart"],
     },
     server: {
       fs: { allow: [project.projectDir, path.dirname(fileURLToPath(new URL("../../runtime", import.meta.url)))] },

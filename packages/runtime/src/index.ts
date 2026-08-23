@@ -1,4 +1,3 @@
-import RevenueTrend from "./RevenueTrend.svelte";
 import { LocalDuckDBRuntime, type QueryloomConfig, type QueryloomRuntimeOptions } from "./runtime.js";
 
 let activeRuntime: LocalDuckDBRuntime | undefined;
@@ -19,4 +18,3 @@ export async function query<T>(sql: string): Promise<readonly T[]> {
 
 export { LocalDuckDBRuntime };
 export type { QueryloomConfig, QueryloomRuntimeOptions };
-export { RevenueTrend };

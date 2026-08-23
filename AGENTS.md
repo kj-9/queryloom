@@ -3,7 +3,7 @@
 ## Project Structure & Module Organization
 
 - `packages/cli/` contains the public `@queryloom/cli`, Vite integration, and agent guide.
-- `packages/runtime/` contains the browser runtime, DuckDB-Wasm SQL helpers, and Svelte chart components.
+- `packages/runtime/` implements the public `@queryloom/library` data API; the CLI supplies LayerChart directly to dashboards.
 - `examples/revenue-dashboard/` is the reference dashboard: `dashboard.svelte` for UI/query logic and `queryloom.yaml` for resources. Sample data lives in `data/`.
 - Keep unit tests next to their source as `*.test.ts`. Treat `examples/**/dist/` as generated output; do not commit it.
 - Read `README.md` for the product contract and `ROADMAP.md` for intentionally deferred work before changing architecture.

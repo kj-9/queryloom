@@ -7,8 +7,8 @@
     "esModuleInterop": true,
     "baseUrl": ".",
     "paths": {
-      "@queryloom/runtime": ["../../packages/runtime/src/index.ts"],
-      "@queryloom/runtime/*": ["../../packages/runtime/src/*"]
+      "@queryloom/library": ["../../packages/runtime/src/index.ts"],
+      "@queryloom/library/*": ["../../packages/runtime/src/*"]
     }
   },
   "include": ["dashboard.svelte", "src/**/*.d.ts", "../../packages/runtime/src/assets.d.ts"]

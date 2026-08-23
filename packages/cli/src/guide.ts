@@ -1,16 +1,16 @@
 export type GuideFormat = "markdown" | "json";
 
 export const guide = {
-  version: 1,
+  version: 3,
   contract: {
     authoredFiles: ["dashboard.svelte", "queryloom.yaml"],
     entrypoint: "dashboard.svelte must have a default Svelte component export.",
-    runtime: "The CLI configures @queryloom/runtime before the dashboard mounts.",
+    library: "The CLI configures @queryloom/library before the dashboard mounts.",
   },
   capabilities: {
     data: ["Local CSV", "Local Parquet", "DuckDB-Wasm SQL through query<T>(sql)"],
     styling: ["Tailwind CSS utilities", "Svelte component <style> blocks"],
-    charts: ["LayerCake for standard SVG charts", "d3-scale for scales"],
+    charts: ["LayerChart 2 supplied directly by the CLI"],
   },
   design: {
     intent: "Build a compact data app that answers one question, not a dense BI control panel.",
@@ -30,14 +30,25 @@ export const guide = {
       "Treat KPI values as an aligned summary strip by default, not a grid of oversized decorative cards.",
     ],
   },
+  animation: {
+    requiredFor: "The primary visualization",
+    purpose: "Show a meaningful first render or data/filter state change.",
+    duration: "200–500ms",
+    prefer: "Use LayerChart motion; for time-series, a one-time path draw is appropriate.",
+    avoid: ["Looping motion", "Decorative motion", "Motion that obscures data comparison"],
+    accessibility: "Respect prefers-reduced-motion.",
+    documentation: "https://next.layerchart.com/docs/guides/animation",
+  },
   rules: [
-    "Import query and chart components only from @queryloom/runtime.",
+    "Import query from @queryloom/library and generic chart components from layerchart.",
     "Use tables declared in queryloom.yaml and quote their SQL identifiers when needed.",
     "Split independent dashboard sections into independent queries so each can load or fail alone.",
     "Keep the page shell visible while data loads; render a local skeleton or loading state per section.",
     "Normalize query values before display, for example Number(row.revenue) and String(row.month).",
     "Format dates and fill missing time buckets in SQL when a chart needs a continuous timeline.",
     "Use local Svelte state for filters in v0. Shareable URL state is not available yet.",
+    "Apply a filter consistently to every metric that claims the filtered scope; label intentionally global metrics explicitly.",
+    "Use a 200–500ms LayerChart motion for the primary visualization when it first renders or meaningfully changes; avoid looping or decorative motion and respect prefers-reduced-motion.",
     "Use Tailwind utilities without adding a Tailwind config or CSS entry file.",
     "Use <style> only for component-specific styling that is awkward as utilities.",
   ],
@@ -55,16 +66,17 @@ export function renderGuide(format: GuideFormat = "markdown"): string {
 
 ## Contract
 
-Author exactly these files: \`dashboard.svelte\` and \`queryloom.yaml\`. The CLI configures \`@queryloom/runtime\` before the dashboard mounts. Use a normal Svelte component as the dashboard default export.
+Author exactly these files: \`dashboard.svelte\` and \`queryloom.yaml\`. The CLI configures \`@queryloom/library\` before the dashboard mounts. Use a normal Svelte component as the dashboard default export.
 
 ## Runtime API
 
-\`@queryloom/runtime\` provides \`query<T>(sql)\` for browser-local DuckDB-Wasm SQL and Svelte chart components such as \`RevenueTrend\`.
+\`@queryloom/library\` provides \`query<T>(sql)\` for browser-local DuckDB-Wasm SQL. Import generic charts such as \`LineChart\`, \`BarChart\`, and \`AreaChart\` directly from \`layerchart\`; the Queryloom CLI supplies and resolves LayerChart, so no third authored file is needed.
 
 \`\`\`svelte
 <script lang="ts">
   import { onMount } from "svelte";
-  import { query } from "@queryloom/runtime";
+  import { LineChart } from "layerchart";
+  import { query } from "@queryloom/library";
 
   type RevenueRow = { month: string; revenue: number };
   let rows = $state<RevenueRow[]>([]);
@@ -76,6 +88,12 @@ Author exactly these files: \`dashboard.svelte\` and \`queryloom.yaml\`. The CLI
     loading = false;
   });
 </script>
+
+{#if loading}
+  <div class="h-72 animate-pulse rounded bg-black/10"></div>
+{:else}
+  <LineChart data={rows} x="month" y="revenue" yDomain={[0, null]} height={288} points />
+{/if}
 \`\`\`
 
 ## Data and query rules
@@ -85,11 +103,14 @@ Author exactly these files: \`dashboard.svelte\` and \`queryloom.yaml\`. The CLI
 - Keep the page structure visible while a section loads; show a local skeleton or loading state instead of replacing the whole page.
 - Normalize values before display: \`Number(row.revenue)\`, \`String(row.month)\`.
 - Format dates and generate missing time buckets in SQL for continuous time-series charts.
+- Apply a filter consistently to every metric that claims the filtered scope. If a metric intentionally remains global, label it explicitly as global.
 
 ## State and charts
 
 - Use Svelte 5 runes (\`$state\`, \`$derived\`) for dashboard state and derived values. Use local state for filters in v0; shareable URL state is not available yet.
-- Use LayerCake for standard SVG charts and \`d3-scale\` where a scale is needed.
+- Compose visualizations directly with generic LayerChart components imported from \`layerchart\`; do not add domain-specific chart wrappers such as \`RevenueTrend\` to the library.
+- Use the official LayerChart LLM documentation for component details: \`https://next.layerchart.com/llms.txt\`.
+- Give the primary visualization a short, meaningful 200–500ms LayerChart motion on first render or data/filter changes. For time-series, a one-time path draw is appropriate. Do not use looping or decorative motion, and respect \`prefers-reduced-motion\`. See \`https://next.layerchart.com/docs/guides/animation\`.
 
 ## Visual direction
 

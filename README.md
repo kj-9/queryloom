@@ -28,6 +28,14 @@ revenue-dashboard/
 ## 使い方
 
 ```bash
+bunx @queryloom/cli init sales-dashboard
+cd sales-dashboard
+bun install
+
+# Agent が dashboard.svelte と queryloom.yaml を実装した後に実行する
+bun run dev
+
+# Scaffold済みプロジェクト以外でも実行できる
 bunx @queryloom/cli dev
 bunx @queryloom/cli build
 bunx @queryloom/cli preview
@@ -38,6 +46,8 @@ Node.js 環境では `npx @queryloom/cli` でも同じ CLI を実行できるこ
 
 `queryloom guide --format json` は、Agent がダッシュボードを実装する際の実行契約・利用可能なAPI・SQL・Loading・Tailwindの規約を返す。加えて、コンパクトなData Appの構成と標準カラーパレットを示す。これはUIを強制するデザインシステムではなく、最初の一画面を一貫して作るための指針である。ガイドはCLIに内蔵され、Dashboard作成者が管理するファイルを増やさない。
 
+`queryloom init <directory>` はAgent用の空プロジェクトを作る。生成するのは実行用の`package.json`、空の`data/`、そしてAgentが埋める`dashboard.svelte`・`queryloom.yaml`だけであり、完成済みDashboardのテンプレートは配らない。
+
 ## データ定義
 
 `queryloom.yaml` では、テーブル名とローカルファイルの対応だけを宣言する。
@@ -46,10 +56,9 @@ Node.js 環境では `npx @queryloom/cli` でも同じ CLI を実行できるこ
 resources:
   sales:
     path: ./data/sales.parquet
-    table: sales
 ```
 
-CSV と Parquet を扱う。ファイル形式は拡張子で判定し、宣言された `table` 名で Svelte 側の SQL から参照する。
+CSV と Parquet を扱う。ファイル形式は拡張子で判定し、`resources` のキー（上例では `sales`）を Svelte 側の SQL テーブル名として参照する。配列形式を使う場合は `name` を指定する。
 
 ## Dashboard
 
@@ -57,7 +66,7 @@ CSV と Parquet を扱う。ファイル形式は拡張子で判定し、宣言�
 
 ```svelte
 <script lang="ts">
-  import { query } from '@queryloom/runtime';
+  import { query } from '@queryloom/library';
 
   const revenue = query<{ revenue: number }>(`
     SELECT SUM(revenue) AS revenue
@@ -73,7 +82,7 @@ v0 のサンプルは Region filter、Revenue KPI、月次 Revenue line chart �
 ```text
 packages/
 ├── cli/       # 公開パッケージ: @queryloom/cli
-└── runtime/   # 公開パッケージ: @queryloom/runtime
+└── runtime/   # 実装ディレクトリ。公開パッケージ: @queryloom/library
 
 examples/
 └── revenue-dashboard/
@@ -91,7 +100,7 @@ examples/
 - Vite と `@sveltejs/vite-plugin-svelte`: 開発サーバーと静的 build
 - Tailwind CSS: CLI が自動注入する設定不要のユーティリティCSS
 - DuckDB-Wasm: ブラウザ内 SQL と CSV / Parquet 読み込み
-- LayerCake + d3-scale: Svelte コンポーネントとして組む SVG チャートとアニメーション
+- LayerChart 2: Svelte 5で直接組む汎用チャート。CLIが同梱し、Dashboardから直接importする
 - YAML: データ資源の定義
 
 ## v0 の対象外

@@ -1,189 +1,263 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { query, RevenueTrend } from "@queryloom/runtime";
+  import { LineChart, Spline } from "layerchart";
+  import { query } from "@queryloom/library";
 
-  type TrendRow = { month: string; revenue: number };
-  type SummaryRow = { revenue: number; previous_revenue: number; months: number };
   type RegionRow = { region: string };
+  type SummaryRow = {
+    totalRevenue: number;
+    averageMonthlyRevenue: number;
+    latestMonthRevenue: number;
+    previousMonthRevenue: number;
+  };
+  type MonthlyRevenueRow = { month: string; revenue: number };
 
   let regions = $state<string[]>([]);
   let selectedRegion = $state("All regions");
-  let trend = $state<TrendRow[]>([]);
   let summary = $state<SummaryRow | null>(null);
-  let trendLoading = $state(true);
+  let monthlyRevenue = $state<MonthlyRevenueRow[]>([]);
+  let regionsLoading = $state(true);
   let summaryLoading = $state(true);
-  let trendError = $state("");
-  let summaryError = $state("");
-  let requestVersion = 0;
+  let chartLoading = $state(true);
+  let regionsError = $state<string | null>(null);
+  let summaryError = $state<string | null>(null);
+  let chartError = $state<string | null>(null);
+  let reducedMotion = $state(false);
+  let requestId = 0;
 
-  const whereClause = $derived(
-    selectedRegion === "All regions"
-      ? ""
-      : `WHERE region = '${selectedRegion.replaceAll("'", "''")}'`
-  );
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
-  const formatCompact = (value: number) =>
-    new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 }).format(value);
-  const percentage = $derived(
-    summary && summary.previous_revenue > 0
-      ? ((summary.revenue - summary.previous_revenue) / summary.previous_revenue) * 100
-      : null
-  );
-  const latestPoint = $derived(trend.at(-1));
+  let scopeLabel = $derived(selectedRegion === "All regions" ? "All regions" : selectedRegion);
 
-  async function loadRegions() {
-    try {
-      const result = await query<RegionRow>(`SELECT DISTINCT region FROM revenue ORDER BY region`);
-      regions = result.map((row) => String(row.region));
-    } catch {
-      regions = [];
-    }
-  }
-
-  async function loadDashboard() {
-    const version = ++requestVersion;
-    trendLoading = true;
-    summaryLoading = true;
-    trendError = "";
-    summaryError = "";
-
-    const trendSql = `
-      WITH months AS (
-        SELECT month_start
-        FROM generate_series(DATE '2026-01-01', DATE '2026-06-01', INTERVAL 1 MONTH) AS t(month_start)
-      ), monthly_revenue AS (
-        SELECT CAST(month || '-01' AS DATE) AS month_start, SUM(revenue)::DOUBLE AS revenue
-        FROM revenue
-        ${whereClause}
-        GROUP BY 1
-      )
-      SELECT strftime(months.month_start, '%b') AS month,
-             COALESCE(monthly_revenue.revenue, 0)::DOUBLE AS revenue
-      FROM months
-      LEFT JOIN monthly_revenue USING (month_start)
-      ORDER BY months.month_start
-    `;
-    const summarySql = `
-      WITH monthly_revenue AS (
-        SELECT CAST(month || '-01' AS DATE) AS month_start, SUM(revenue)::DOUBLE AS revenue
-        FROM revenue
-        ${whereClause}
-        GROUP BY 1
-      )
-      SELECT COALESCE(SUM(revenue), 0)::DOUBLE AS revenue,
-             COALESCE(SUM(CASE WHEN month_start < DATE '2026-04-01' THEN revenue ELSE 0 END), 0)::DOUBLE AS previous_revenue,
-             COUNT(*)::INTEGER AS months
-      FROM monthly_revenue
-    `;
-
-    const [trendResult, summaryResult] = await Promise.allSettled([
-      query<TrendRow>(trendSql),
-      query<SummaryRow>(summarySql)
-    ]);
-    if (version !== requestVersion) return;
-
-    if (trendResult.status === "fulfilled") {
-      trend = trendResult.value.map((row) => ({ month: String(row.month), revenue: Number(row.revenue) }));
-    } else {
-      trend = [];
-      trendError = "The revenue trend could not be loaded.";
-    }
-    if (summaryResult.status === "fulfilled") {
-      const row = summaryResult.value[0];
-      summary = row
-        ? { revenue: Number(row.revenue), previous_revenue: Number(row.previous_revenue), months: Number(row.months) }
-        : null;
-    } else {
-      summary = null;
-      summaryError = "The revenue summary could not be loaded.";
-    }
-    trendLoading = false;
-    summaryLoading = false;
-  }
-
-  onMount(() => {
-    void loadRegions();
-    void loadDashboard();
+  const currency = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  });
+  const percent = new Intl.NumberFormat("en-US", {
+    style: "percent",
+    maximumFractionDigits: 1,
+    signDisplay: "always",
   });
 
-  function changeRegion(region: string) {
-    selectedRegion = region;
-    void loadDashboard();
+  function filterClause() {
+    if (selectedRegion === "All regions") return "";
+    return `WHERE region = '${selectedRegion.replaceAll("'", "''")}'`;
   }
+
+  function monthlyChange() {
+    if (!summary || summary.previousMonthRevenue <= 0) return null;
+    return (summary.latestMonthRevenue - summary.previousMonthRevenue) / summary.previousMonthRevenue;
+  }
+
+  function selectedScopeSql() {
+    return `
+      WITH filtered AS (
+        SELECT month, revenue
+        FROM revenue
+        ${filterClause()}
+      )
+    `;
+  }
+
+  async function loadSummary(currentRequest: number) {
+    summaryLoading = true;
+    summaryError = null;
+
+    try {
+      const rows = await query<MonthlyRevenueRow>(`
+        ${selectedScopeSql()}
+        SELECT month, SUM(revenue)::DOUBLE AS revenue
+        FROM filtered
+        GROUP BY month
+        ORDER BY month
+      `);
+
+      if (currentRequest === requestId) {
+        const monthlyRows = rows.map((row) => Number(row.revenue));
+        const latestMonthRevenue = monthlyRows[monthlyRows.length - 1] ?? 0;
+        const previousMonthRevenue = monthlyRows[monthlyRows.length - 2] ?? 0;
+        summary = monthlyRows.length
+          ? {
+              totalRevenue: monthlyRows.reduce((total, revenue) => total + revenue, 0),
+              averageMonthlyRevenue: monthlyRows.reduce((total, revenue) => total + revenue, 0) / monthlyRows.length,
+              latestMonthRevenue,
+              previousMonthRevenue,
+            }
+          : null;
+      }
+    } catch (error) {
+      if (currentRequest === requestId) {
+        summary = null;
+        summaryError = error instanceof Error ? error.message : "Unable to load revenue summary.";
+      }
+    } finally {
+      if (currentRequest === requestId) summaryLoading = false;
+    }
+  }
+
+  async function loadChart(currentRequest: number) {
+    chartLoading = true;
+    chartError = null;
+
+    try {
+      const rows = await query<MonthlyRevenueRow>(`
+        ${selectedScopeSql()}
+        SELECT month, SUM(revenue)::DOUBLE AS revenue
+        FROM filtered
+        GROUP BY month
+        ORDER BY month
+      `);
+
+      if (currentRequest === requestId) {
+        monthlyRevenue = rows.map((row) => ({
+          month: String(row.month),
+          revenue: Number(row.revenue),
+        }));
+      }
+    } catch (error) {
+      if (currentRequest === requestId) {
+        monthlyRevenue = [];
+        chartError = error instanceof Error ? error.message : "Unable to load monthly revenue.";
+      }
+    } finally {
+      if (currentRequest === requestId) chartLoading = false;
+    }
+  }
+
+  function loadDashboard() {
+    requestId += 1;
+    const currentRequest = requestId;
+    void loadSummary(currentRequest);
+    void loadChart(currentRequest);
+  }
+
+  function selectRegion(event: Event) {
+    selectedRegion = (event.currentTarget as HTMLSelectElement).value;
+    loadDashboard();
+  }
+
+  onMount(async () => {
+    reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    try {
+      const rows = await query<RegionRow>(`
+        SELECT DISTINCT region
+        FROM revenue
+        ORDER BY region
+      `);
+      regions = rows.map((row) => String(row.region));
+    } catch (error) {
+      regionsError = error instanceof Error ? error.message : "Unable to load regions.";
+    } finally {
+      regionsLoading = false;
+    }
+
+    loadDashboard();
+  });
 </script>
 
 <svelte:head>
   <title>Revenue pulse</title>
-  <meta name="description" content="A six-month local revenue trend." />
+  <meta name="description" content="A compact, browser-local view of monthly revenue by region." />
 </svelte:head>
 
-<main class="min-h-screen bg-[#f8f8f8] px-4 py-7 text-[#231f20] sm:px-8 sm:py-10">
-  <section class="mx-auto max-w-4xl">
+<main class="min-h-screen bg-[#f8f8f8] px-4 py-6 text-[#231f20] sm:px-6 lg:px-8">
+  <div class="mx-auto max-w-6xl">
     <header class="flex flex-col gap-5 border-b border-black/10 pb-6 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <p class="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#0777b3]">Revenue pulse · 2026</p>
-        <h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">Is revenue gaining momentum?</h1>
-        <p class="mt-2 max-w-xl text-sm leading-6 text-[#6a6a6a]">Monthly revenue through June, compared with the first quarter baseline.</p>
+        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#0777b3]">Revenue monitor</p>
+        <h1 class="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">Monthly revenue pulse</h1>
+        <p class="mt-2 max-w-xl text-sm leading-6 text-[#6a6a6a]">Revenue is aggregated in your browser from the local source declared for this dashboard.</p>
       </div>
-      <div class="flex flex-wrap gap-2" aria-label="Region filter">
-        {#each ["All regions", ...regions] as region (region)}
-          <button
-            type="button"
-            class:active={selectedRegion === region}
-            class="rounded-full border border-black/15 px-3 py-1.5 text-sm font-medium transition hover:border-[#0777b3] hover:text-[#0777b3]"
-            onclick={() => changeRegion(region)}
-            aria-pressed={selectedRegion === region}
-          >{region}</button>
-        {/each}
-      </div>
+
+      <label class="grid gap-1.5 text-sm font-medium" for="region">
+        <span class="text-[#6a6a6a]">Region</span>
+        <select
+          id="region"
+          class="min-w-44 rounded-md border border-black/15 bg-white px-3 py-2 text-[#231f20] shadow-sm outline-none transition focus:border-[#0777b3] focus:ring-2 focus:ring-[#0777b3]/20 disabled:cursor-not-allowed disabled:bg-black/5"
+          disabled={regionsLoading || Boolean(regionsError)}
+          value={selectedRegion}
+          onchange={selectRegion}
+        >
+          <option value="All regions">All regions</option>
+          {#each regions as region (region)}
+            <option value={region}>{region}</option>
+          {/each}
+        </select>
+        {#if regionsError}
+          <span class="text-xs font-normal text-[#bc1200]">Region filter unavailable</span>
+        {/if}
+      </label>
     </header>
 
-    <div class="grid gap-4 border-b border-black/10 py-5 sm:grid-cols-3 sm:gap-0">
-      <div class="sm:border-r sm:border-black/10 sm:pr-6">
-        <p class="text-xs font-medium uppercase tracking-[0.12em] text-[#6a6a6a]">Six-month revenue</p>
-        {#if summaryLoading}<div class="mt-2 h-8 w-28 animate-pulse rounded bg-black/10"></div>
-        {:else if summaryError}<p class="mt-2 text-sm text-[#bc1200]">{summaryError}</p>
-        {:else}<p class="mt-1 text-2xl font-semibold tracking-tight">{formatCompact(summary?.revenue ?? 0)}</p>{/if}
-      </div>
-      <div class="sm:border-r sm:border-black/10 sm:px-6">
-        <p class="text-xs font-medium uppercase tracking-[0.12em] text-[#6a6a6a]">June run rate</p>
-        {#if trendLoading}<div class="mt-2 h-8 w-24 animate-pulse rounded bg-black/10"></div>
-        {:else if trendError}<p class="mt-2 text-sm text-[#bc1200]">Unavailable</p>
-        {:else}<p class="mt-1 text-2xl font-semibold tracking-tight">{formatCompact(latestPoint?.revenue ?? 0)}</p>{/if}
-      </div>
-      <div class="sm:pl-6">
-        <p class="text-xs font-medium uppercase tracking-[0.12em] text-[#6a6a6a]">Q2 vs. Q1</p>
-        {#if summaryLoading}<div class="mt-2 h-8 w-20 animate-pulse rounded bg-black/10"></div>
-        {:else if percentage !== null}<p class="mt-1 text-2xl font-semibold tracking-tight text-[#2d7a00]">+{percentage.toFixed(1)}%</p>
-        {:else}<p class="mt-1 text-2xl font-semibold tracking-tight">—</p>{/if}
-      </div>
-    </div>
-
-    <article class="mt-6 rounded-xl border border-black/10 bg-white p-4 shadow-[0_1px_2px_rgb(0_0_0_/_0.03)] sm:p-6">
-      <div class="mb-4 flex items-baseline justify-between gap-4">
-        <div>
-          <h2 class="font-semibold">Monthly revenue</h2>
-          <p class="mt-1 text-sm text-[#6a6a6a]">{selectedRegion} · January–June</p>
+    <section class="grid gap-px overflow-hidden rounded-lg border border-black/10 bg-black/10 sm:grid-cols-3" aria-label="Revenue summary">
+      {#if summaryLoading}
+        {#each Array(3) as _}
+          <div class="min-h-32 animate-pulse bg-white p-5"><div class="h-3 w-20 rounded bg-black/10"></div><div class="mt-5 h-8 w-32 rounded bg-black/10"></div></div>
+        {/each}
+      {:else if summaryError}
+        <div class="col-span-full bg-white p-5 text-sm text-[#bc1200]"><span class="font-semibold">Summary unavailable.</span> {summaryError}</div>
+      {:else if summary}
+        <div class="bg-white p-5">
+          <p class="text-sm text-[#6a6a6a]">Total revenue</p>
+          <p class="mt-3 text-2xl font-semibold tracking-tight">{currency.format(summary.totalRevenue)}</p>
+          <p class="mt-2 text-xs text-[#6a6a6a]">Across all available months · {scopeLabel}</p>
         </div>
-        {#if latestPoint && !trendLoading}<p class="hidden text-right text-sm text-[#6a6a6a] sm:block">June<br /><span class="font-medium text-[#231f20]">{formatCurrency(latestPoint.revenue)}</span></p>{/if}
-      </div>
-      {#if trendLoading}
-        <div class="h-[300px] animate-pulse rounded-lg bg-[linear-gradient(110deg,#f3f4f6,45%,#fafafa,55%,#f3f4f6)]"></div>
-      {:else if trendError}
-        <div class="flex h-[300px] flex-col items-center justify-center rounded-lg border border-dashed border-[#bc1200]/30 bg-[#bc1200]/5 text-center">
-          <p class="font-medium text-[#bc1200]">{trendError}</p>
-          <button type="button" class="mt-3 text-sm font-semibold text-[#0777b3] underline underline-offset-4" onclick={() => void loadDashboard()}>Try again</button>
+        <div class="bg-white p-5">
+          <p class="text-sm text-[#6a6a6a]">Monthly average</p>
+          <p class="mt-3 text-2xl font-semibold tracking-tight">{currency.format(summary.averageMonthlyRevenue)}</p>
+          <p class="mt-2 text-xs text-[#6a6a6a]">Average monthly revenue · {scopeLabel}</p>
         </div>
-      {:else if trend.length === 0}
-        <div class="flex h-[300px] items-center justify-center rounded-lg border border-dashed border-black/15 text-sm text-[#6a6a6a]">No revenue data for this selection.</div>
+        <div class="bg-white p-5">
+          <p class="text-sm text-[#6a6a6a]">Latest month</p>
+          <p class="mt-3 text-2xl font-semibold tracking-tight">{currency.format(summary.latestMonthRevenue)}</p>
+          <p class="mt-2 text-xs text-[#6a6a6a]">
+            {#if monthlyChange() === null}
+              No prior month to compare
+            {:else}
+              {percent.format(monthlyChange() ?? 0)} vs. previous month · {scopeLabel}
+            {/if}
+          </p>
+        </div>
       {:else}
-        <RevenueTrend data={trend} height={300} />
+        <div class="col-span-full bg-white p-5 text-sm text-[#6a6a6a]">No revenue records match this region.</div>
       {/if}
-    </article>
-  </section>
-</main>
+    </section>
 
-<style>
-  button.active { background: #0777b3; border-color: #0777b3; color: white; }
-</style>
+    <section class="mt-6 rounded-lg border border-black/10 bg-white p-4 shadow-sm sm:p-6" aria-labelledby="trend-title">
+      <div class="flex flex-col gap-2 sm:flex-row sm:items-baseline sm:justify-between">
+        <div>
+          <h2 id="trend-title" class="text-lg font-semibold tracking-tight">Revenue trend</h2>
+          <p class="mt-1 text-sm text-[#6a6a6a]">Monthly revenue for {scopeLabel}.</p>
+        </div>
+        <p class="text-xs font-medium uppercase tracking-[0.14em] text-[#6a6a6a]">USD</p>
+      </div>
+
+      <div class="mt-5" aria-busy={chartLoading}>
+        {#if chartLoading}
+          <div class="h-80 animate-pulse rounded-md bg-black/[0.04]"></div>
+        {:else if chartError}
+          <div class="flex h-80 items-center justify-center rounded-md border border-dashed border-[#bc1200]/40 bg-[#bc1200]/[0.03] px-6 text-center text-sm text-[#bc1200]"><span><span class="font-semibold">Trend unavailable.</span> {chartError}</span></div>
+        {:else if monthlyRevenue.length === 0}
+          <div class="flex h-80 items-center justify-center rounded-md border border-dashed border-black/15 px-6 text-center text-sm text-[#6a6a6a]">No monthly revenue is available for this region.</div>
+        {:else}
+          {#key `${selectedRegion}-${monthlyRevenue.length}`}
+            <LineChart
+              data={monthlyRevenue}
+              x="month"
+              y="revenue"
+              yDomain={[0, null]}
+              height={320}
+              points
+              tooltipContext
+              series={[{ key: "revenue", color: "#0777b3" }]}
+            >
+              {#snippet marks()}
+                <Spline seriesKey="revenue" strokeWidth={3} draw={reducedMotion ? false : { duration: 360 }} />
+              {/snippet}
+            </LineChart>
+          {/key}
+        {/if}
+      </div>
+    </section>
+  </div>
+</main>

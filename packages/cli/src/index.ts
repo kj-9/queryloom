@@ -3,6 +3,7 @@ import path from "node:path";
 import { buildProject, startDev, startPreview } from "./vite.js";
 import { loadProject } from "./config.js";
 import { renderGuide, type GuideFormat } from "./guide.js";
+import { initializeProject } from "./init.js";
 
 interface CliOptions {
   root: string;
@@ -19,6 +20,7 @@ Usage:
   queryloom dev [--root <dir>] [--host <host>] [--port <port>]
   queryloom build [--root <dir>] [--outDir <dir>]
   queryloom preview [--root <dir>] [--host <host>] [--port <port>]
+  queryloom init <directory>
   queryloom guide [--format markdown|json]
 
 A project contains dashboard.svelte, queryloom.yaml, and local CSV/Parquet resources.`);
@@ -57,6 +59,16 @@ async function main(): Promise<void> {
   const [command = "help", ...args] = process.argv.slice(2);
   if (command === "help" || command === "--help" || command === "-h") return help();
   if (command === "guide") return console.log(renderGuide(parseGuideFormat(args)).trimEnd());
+  if (command === "init") {
+    if (args.length !== 1 || args[0] === "--help" || args[0] === "-h") {
+      if (args.length === 1) console.log("Usage: queryloom init <directory>");
+      else throw new Error("Usage: queryloom init <directory>");
+      return;
+    }
+    await initializeProject(args[0]);
+    console.log(`Queryloom project created: ${path.resolve(args[0])}\n\nNext:\n  cd ${args[0]}\n  bun install\n  bun run guide  # give this output to your Agent`);
+    return;
+  }
   if (!new Set(["dev", "build", "preview"]).has(command)) throw new Error(`Unknown command: ${command}`);
 
   const options = parseOptions(args);
