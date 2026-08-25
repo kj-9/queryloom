@@ -1,6 +1,6 @@
 # Queryloom
 
-`dashboard.svelte` と `queryloom.yaml` から、ローカルデータをブラウザ内で SQL 集計する静的ダッシュボードを生成する CLI。
+`dashboard.svelte` と `queryloom.yaml` から、ブラウザ内で SQL 集計する静的ダッシュボードを生成する CLI。
 
 Queryloom は、ダッシュボードの UI を DSL や特定のデザインシステムに閉じ込めない。画面は通常の Svelte コンポーネントとして書き、データ処理だけを DuckDB-Wasm に委ねる。
 
@@ -10,10 +10,10 @@ Dashboard を作る人（または Agent）が管理するのは次の二ファ�
 
 ```text
 dashboard.svelte   # UI、SQL、状態、インタラクション
-queryloom.yaml     # ローカルデータ資源の宣言
+queryloom.yaml     # データ資源の宣言
 ```
 
-加えて、`queryloom.yaml` が参照する CSV または Parquet ファイルをプロジェクト内に置く。
+標準では、`queryloom.yaml` が参照する CSV または Parquet ファイルをプロジェクト内に置く。
 
 ```text
 revenue-dashboard/
@@ -23,7 +23,7 @@ revenue-dashboard/
     └── sales.csv
 ```
 
-`queryloom build` は Svelte、DuckDB-Wasm、データファイルを bundle し、任意の静的ホスティングへ配置できる `dist/` を出力する。クエリはサーバーではなく閲覧者のブラウザで実行される。
+`queryloom build` は Svelte と DuckDB-Wasm、そしてプロジェクト内データを bundle し、任意の静的ホスティングへ配置できる `dist/` を出力する。外部URLのデータはbundleせず、閲覧者のブラウザで取得する。クエリはサーバーではなく閲覧者のブラウザで実行される。
 
 ## 使い方
 
@@ -32,8 +32,8 @@ bunx @queryloom/cli init sales-dashboard
 cd sales-dashboard
 bun install
 
-# Agentが最初にデータを把握・設計する
-bun run inspect -- data/sales.csv --format json
+# Agentが最初に与えられたデータを把握・設計する
+bun run inspect -- data/<source> --format json
 bun run guide -- --phase design
 
 # Agent が dashboard.svelte と queryloom.yaml を実装した後に実行する
@@ -49,9 +49,9 @@ bunx @queryloom/cli inspect data/sales.csv --format json
 
 Node.js 環境では `npx @queryloom/cli` でも同じ CLI を実行できることを配布要件とする。
 
-`queryloom inspect <file> --format json` は、CSV / Parquet / `.duckdb` をローカルでDuckDB-Wasmに読み込み、テーブル・列型・行数・NULL数・概算distinct数・数値/時系列の範囲・先頭5行を返す。Agentはこの出力を根拠に設計する。`queryloom inspect --root .` は、`queryloom.yaml`で宣言済みの全リソースを同じ形式で確認する。
+`queryloom inspect <file-or-url> --format json` は、ローカルCSV / Parquet / `.duckdb`、またはHTTP(S)上のCSV / ParquetをDuckDB-Wasmに読み込み、テーブル・列型・行数・NULL数・概算distinct数・数値/時系列の範囲・先頭5行を返す。Agentはこの出力を根拠に設計する。外部URLのinspectにもCORSが必要である。`queryloom inspect --root .` は、`queryloom.yaml`で宣言済みの全リソースを同じ形式で確認する。
 
-`queryloom guide --phase design` はデータの粒度、指標、フィルタ、品質上の注意を先に設計させるためのガイドである。`queryloom guide --format json` は、その設計を受けてDashboardを実装する際の実行契約・利用可能なAPI・SQL・Loading・Tailwindの規約を返す。加えて、コンパクトなData Appの構成と標準カラーパレットを示す。いずれもCLIに内蔵され、Dashboard作成者が管理するファイルを増やさない。
+`queryloom guide --phase design` は、Agentが「このデータを可視化して」と依頼されたときに、入力を確認し、データの粒度・指標・フィルタ・品質上の注意を根拠に2〜3の方向性を提案して、ユーザーの選択を待つためのガイドである。承認後は`queryloom guide --format json`が、Dashboard実装時の実行契約・利用可能なAPI・SQL・Loading・Tailwind・transitionの規約を返す。加えて、コンパクトなData Appの構成と標準カラーパレットを示す。いずれもCLIに内蔵され、Dashboard作成者が管理するファイルを増やさない。
 
 ### リポジトリ内でCLIを試す
 
@@ -79,6 +79,14 @@ resources:
 
 Dashboardが扱うのはCSVとParquetである。ファイル形式は拡張子で判定し、`resources` のキー（上例では `sales`）を Svelte 側の SQL テーブル名として参照する。配列形式を使う場合は `name` を指定する。`.duckdb` は設計時のinspect対象にはできるが、v0のブラウザDashboardのresourceにはまだ宣言しない。
 
+`path` はプロジェクト内のデータを指し、build時に`dist/`へそのままコピーする。これは標準の静的配布方式である。データを別デプロイ・CDNで管理したい場合は、HTTP(S)の`url`を指定できる。この場合、データはbuild成果物へ含めず、閲覧者のブラウザが実行時に取得する。外部URLはCORSを許可し、内容変更時はURLをバージョニングすること。
+
+```yaml
+resources:
+  sales:
+    url: https://cdn.example.com/sales-2026-08.parquet
+```
+
 ## Dashboard
 
 `dashboard.svelte` は通常の Svelte コンポーネントである。Queryloom Runtime が提供する `query()` を使って、定義済みのテーブルを SQL で問い合わせる。Tailwind CSS は CLI にビルトインされているため、設定ファイルや CSS エントリなしでユーティリティクラスを使える。必要な局所的なスタイルは Svelte の `<style>` に併記できる。
@@ -104,12 +112,13 @@ packages/
 └── runtime/   # 実装ディレクトリ。公開パッケージ: @queryloom/library
 
 examples/
-└── revenue-dashboard/
+├── revenue-dashboard/  # 維持する参照実装
+└── address-data/       # Agent生成の実験例
 ```
 
 開発は Bun workspace で行う。公開する CLI は Node.js 互換 ESM とし、Bun 固有 API には依存しない。
 
-次の実装タスクは [ROADMAP.md](ROADMAP.md) で管理する。
+振る舞いやアーキテクチャを変える開発は [OpenSpec](openspec/) で提案・実装・検証する。次の優先課題は [ROADMAP.md](ROADMAP.md) で管理する。
 
 ## 採用技術
 
@@ -125,7 +134,7 @@ examples/
 ## v0 の対象外
 
 - 複数 Dashboard
-- リモートデータ、認証、Connector 抽象化
-- MotherDuck、Postgres、HTTP / Arrow
+- リモートデータベース、認証、Connector 抽象化
+- MotherDuck、Postgres、Arrow、サーバーサイドクエリ
 - Semantic Layer、Dashboard DSL、Agent MCP
 - 公開・埋め込み管理

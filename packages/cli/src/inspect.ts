@@ -92,6 +92,15 @@ function inferredFormat(filePath: string): InspectableFormat {
   throw new Error(`Cannot infer a supported format for ${filePath}; use csv, parquet, or duckdb`);
 }
 
+function externalHttpUrl(value: string): URL | undefined {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:" ? url : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function isNumeric(type: string): boolean {
   return /^(TINYINT|SMALLINT|INTEGER|BIGINT|HUGEINT|UTINYINT|USMALLINT|UINTEGER|UBIGINT|FLOAT|DOUBLE|DECIMAL|REAL)/.test(
     type.toUpperCase(),
@@ -180,13 +189,23 @@ export async function inspectResources(projectDir: string, resources: QueryloomR
   try {
     const inspected = [];
     for (const resource of resources) {
-      const absolutePath = path.resolve(projectDir, resource.path);
-      const data = await readFile(absolutePath);
-      await database.registerFileBuffer(resource.path, new Uint8Array(data));
-      connection.query(tableReaderSql(resource.name, resource.path, resource.format));
+      const source = resource.url ?? resource.path;
+      if (!source) throw new Error(`Resource ${resource.name} needs a path or url`);
+      const data = await (async () => {
+        if (resource.url) {
+          const response = await fetch(resource.url);
+          if (!response.ok) throw new Error(`Could not load ${resource.name} from ${resource.url}: ${response.status}`);
+          return new Uint8Array(await response.arrayBuffer());
+        }
+        if (!resource.path) throw new Error(`Resource ${resource.name} needs a path or url`);
+        return new Uint8Array(await readFile(path.resolve(projectDir, resource.path)));
+      })();
+      const fileName = resource.path ?? `external/${resource.name}.${resource.format}`;
+      await database.registerFileBuffer(fileName, data);
+      connection.query(tableReaderSql(resource.name, fileName, resource.format));
       inspected.push({
         name: resource.name,
-        path: resource.path,
+        path: source,
         format: resource.format,
         tables: [inspectTable(connection, resource.name)],
       });
@@ -198,6 +217,20 @@ export async function inspectResources(projectDir: string, resources: QueryloomR
 }
 
 export async function inspectPath(filePath: string): Promise<DataInspection> {
+  const externalUrl = externalHttpUrl(filePath);
+  if (externalUrl) {
+    const format = inferredFormat(externalUrl.pathname);
+    if (format === "duckdb")
+      throw new Error("Remote DuckDB files are not supported; download the file before inspection");
+    return inspectResources(".", [
+      {
+        name: path.basename(externalUrl.pathname, path.extname(externalUrl.pathname)),
+        url: externalUrl.href,
+        format,
+      },
+    ]);
+  }
+
   const absolutePath = path.resolve(filePath);
   const format = inferredFormat(absolutePath);
   if (format !== "duckdb") {

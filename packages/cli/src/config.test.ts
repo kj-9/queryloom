@@ -22,3 +22,22 @@ test("normalizes array and map resources without allowing path traversal", () =>
     /inside the dashboard/,
   );
 });
+
+test("normalizes an external HTTP data resource without treating it as a local file", () => {
+  const config = normalizeConfig(
+    { resources: { population: { url: "https://cdn.example.com/data/population.parquet?v=2" } } },
+    "/tmp/dashboard",
+  );
+
+  assert.deepEqual(config.resources, [
+    { name: "population", url: "https://cdn.example.com/data/population.parquet?v=2", format: "parquet" },
+  ]);
+  assert.throws(
+    () =>
+      normalizeConfig(
+        { resources: { bad: { path: "data/a.csv", url: "https://example.com/a.csv" } } },
+        "/tmp/dashboard",
+      ),
+    /either path or url/,
+  );
+});

@@ -114,9 +114,16 @@ const guide = defineCommand({
 });
 
 const inspect = defineCommand({
-  meta: { name: "inspect", description: "Inspect local CSV, Parquet, or DuckDB data with DuckDB-Wasm." },
+  meta: {
+    name: "inspect",
+    description: "Inspect local or HTTP(S) CSV/Parquet data, or local DuckDB data, with DuckDB-Wasm.",
+  },
   args: {
-    file: { type: "positional" as const, description: "CSV, Parquet, or DuckDB file to inspect.", required: false },
+    file: {
+      type: "positional" as const,
+      description: "Local path or HTTP(S) CSV/Parquet URL, or local DuckDB file.",
+      required: false,
+    },
     root: {
       type: "string" as const,
       description: "Project directory; inspects queryloom.yaml resources when no file is given.",

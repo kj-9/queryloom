@@ -109,6 +109,7 @@ function queryloomPlugin(project: { projectDir: string; dashboardPath: string; c
     },
     async generateBundle(_, bundle) {
       for (const resource of project.config.resources) {
+        if (!resource.path) continue;
         const source = await readFile(path.join(project.projectDir, resource.path));
         this.emitFile({ type: "asset", fileName: resource.path, source });
       }

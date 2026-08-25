@@ -2,14 +2,14 @@ export type GuideFormat = "markdown" | "json";
 export type GuidePhase = "build" | "design";
 
 export const guide = {
-  version: 3,
+  version: 4,
   contract: {
     authoredFiles: ["dashboard.svelte", "queryloom.yaml"],
     entrypoint: "dashboard.svelte must have a default Svelte component export.",
     library: "The CLI configures @queryloom/library before the dashboard mounts.",
   },
   capabilities: {
-    data: ["Local CSV", "Local Parquet", "DuckDB-Wasm SQL through query<T>(sql)"],
+    data: ["Project CSV/Parquet files", "External HTTP(S) CSV/Parquet files", "DuckDB-Wasm SQL through query<T>(sql)"],
     styling: ["Tailwind CSS utilities", "Svelte component <style> blocks"],
     charts: ["LayerChart 2 supplied directly by the CLI"],
   },
@@ -40,6 +40,13 @@ export const guide = {
     accessibility: "Respect prefers-reduced-motion.",
     documentation: "https://next.layerchart.com/docs/guides/animation",
   },
+  transitions: {
+    purpose: "Make filter-driven changes feel continuous while preserving comparison and accessibility.",
+    prefer:
+      "Keep the page shell stable. Use short Svelte transitions for changed summaries, supporting text, or tables; let LayerChart animate the chart marks.",
+    duration: "150–250ms for UI transitions; 200–500ms for chart-mark animation.",
+    accessibility: "Respect prefers-reduced-motion and avoid a transition for every repeated row.",
+  },
   rules: [
     "Import query from @queryloom/library and generic chart components from layerchart.",
     "Use tables declared in queryloom.yaml and quote their SQL identifiers when needed.",
@@ -52,11 +59,13 @@ export const guide = {
     "When a filter event triggers a query, read the event's selected value and pass it to the query function explicitly; do not rely on a derived SQL clause updating before the event handler runs.",
     "For a LineChart path animation, render Spline inside the marks snippet and use its draw prop (for example draw={reducedMotion ? false : { duration: 350 }}); do not use a CSS-only reveal or a motion prop on Spline.",
     "Use a 200–500ms LayerChart draw animation for the primary visualization when it first renders or meaningfully changes; avoid looping or decorative motion and respect prefers-reduced-motion.",
+    "When a filter changes, keep the page shell stable. Use a restrained 150–250ms Svelte transition for the changed summary, supporting text, or table; let LayerChart animate chart marks instead of wrapping the entire chart in a competing transition.",
+    "Use a keyed Svelte block only around content that genuinely changes with the filter, not around the whole dashboard. Respect prefers-reduced-motion and do not animate every repeated table row.",
     "Use Tailwind utilities without adding a Tailwind config or CSS entry file.",
     "Use <style> only for component-specific styling that is awkward as utilities.",
   ],
   limits: [
-    "No remote connectors, authentication, or server-side queries.",
+    "No remote database connectors, authentication, or server-side queries. External static CSV/Parquet URLs are supported when CORS permits browser access.",
     "No external scripts, stylesheets, or runtime-loaded npm packages.",
     "No multiple-dashboard routing or embedded publishing controls.",
   ],
@@ -115,6 +124,7 @@ Author exactly these files: \`dashboard.svelte\` and \`queryloom.yaml\`. The CLI
 - Compose visualizations directly with generic LayerChart components imported from \`layerchart\`; do not add domain-specific chart wrappers such as \`RevenueTrend\` to the library.
 - Use the official LayerChart LLM documentation for component details: \`https://next.layerchart.com/llms.txt\`.
 - Give the primary visualization a short, meaningful 200–500ms LayerChart motion on first render or data/filter changes. For a line chart, render \`Spline\` in the \`marks\` snippet and use its \`draw\` prop; do not substitute a CSS reveal or a \`motion\` prop on \`Spline\`. For time-series, a one-time path draw is appropriate. Do not use looping or decorative motion, and respect \`prefers-reduced-motion\`. See \`https://next.layerchart.com/docs/guides/animation\`.
+- Keep the page shell stable when a filter changes. Use a restrained 150–250ms Svelte transition only for the summary, supporting text, or table content that actually changes; a keyed block should not wrap the entire dashboard. Let LayerChart animate the chart marks, rather than competing with it by transitioning the whole chart container. Respect \`prefers-reduced-motion\` and do not animate every repeated table row.
 
 ## Visual direction
 
@@ -131,27 +141,31 @@ Prefer restrained borders, a single primary accent, and an aligned KPI summary o
 
 ## Boundaries
 
-This version supports only local CSV/Parquet resources and browser-local SQL. Do not add remote connectors, authentication, external scripts/stylesheets, dynamic npm imports, routing, or publishing controls.
+This version supports project-local or external HTTP(S) CSV/Parquet resources and browser-local SQL. For external data URLs, require CORS and a versioned immutable URL. Do not add remote database connectors, authentication, external scripts/stylesheets, dynamic npm imports, routing, or publishing controls.
 `;
 }
 
 export function renderDesignGuide(format: GuideFormat = "markdown"): string {
   const designGuide = {
-    version: 1,
-    purpose: "Turn inspected local data into a concise dashboard plan before writing dashboard.svelte.",
+    version: 3,
+    purpose: "Turn inspected local data inputs into a concise dashboard plan before writing dashboard.svelte.",
     requiredInput:
-      "Inspect source files with queryloom inspect <file> --format json; after creating queryloom.yaml, inspect its declared resources with queryloom inspect --root . --format json.",
+      "Inspect every supplied data path or HTTP(S) CSV/Parquet URL with queryloom inspect <path-or-url> --format json; after creating queryloom.yaml, inspect its declared resources with queryloom inspect --root . --format json.",
     process: [
+      "When asked to visualize data, run this workflow without asking the user to restate these standard steps.",
+      "Locate the supplied local data inputs and inspect each one before deciding what to build.",
       "State the decision or question this dashboard should answer in one sentence.",
       "Identify the grain of each inspected table, its measures, dimensions, and any reliable time field.",
       "Define 2–4 KPIs and one primary chart. Every metric must name its source table, aggregation, time range, and filter scope.",
       "Choose only filters supported by inspected columns. Do not invent columns, joins, targets, or business meanings.",
       "Call out data-quality caveats visible in nulls, cardinality, ranges, or samples.",
-      "Then create queryloom.yaml and dashboard.svelte. Follow queryloom guide for the implementation phase.",
+      "Present 2–3 distinct, data-grounded dashboard directions. For each, state the question, primary chart, KPIs, filters, and caveats; recommend one direction.",
+      "Ask the user to select or adjust a direction, then stop. Do not author queryloom.yaml or dashboard.svelte until the user confirms a direction.",
+      "After confirmation, author queryloom.yaml and dashboard.svelte. Follow queryloom guide for the implementation phase, then run check and build.",
     ],
     boundaries: [
       "Inspection is read-only and local.",
-      "Inspect CSV, Parquet, or DuckDB files locally. Dashboard resources in v0 must be CSV or Parquet.",
+      "Inspect local CSV, Parquet, or DuckDB files. Dashboard resources in v0 may be project-local or external HTTP(S) CSV/Parquet files.",
       "Do not make up metric definitions from column names alone; state uncertainty instead.",
     ],
   } as const;
@@ -159,16 +173,22 @@ export function renderDesignGuide(format: GuideFormat = "markdown"): string {
   if (format === "json") return `${JSON.stringify(designGuide, null, 2)}\n`;
   return `# Queryloom data-design guide
 
-Before writing a dashboard, inspect every source file with \`queryloom inspect <file> --format json\` and use the complete output as evidence. After declaring CSV or Parquet resources in \`queryloom.yaml\`, run \`queryloom inspect --root . --format json\` to verify the project-facing table names. Inspection is local and read-only.
+When asked to visualize data, carry out this workflow without asking the user to repeat its standard steps. Before proposing a dashboard, inspect every supplied local path or HTTP(S) CSV/Parquet URL with \`queryloom inspect <path-or-url> --format json\` and use the complete output as evidence. Present options and obtain the user's direction before writing a dashboard. After declaring dashboard resources in \`queryloom.yaml\`, run \`queryloom inspect --root . --format json\` to verify the project-facing table names. Inspection is read-only.
+
+## Input handling
+
+- Identify the supplied file or files first. Inspect each input separately before selecting metrics or visuals.
+- \`queryloom inspect\` can examine local CSV, Parquet, and \`.duckdb\` inputs. A \`.duckdb\` input may contain multiple tables; treat its discovered schema as design evidence.
+- v0 dashboard resources are CSV or Parquet. A project-local \`path\` is copied to the static build; an external HTTP(S) \`url\` is fetched at runtime and must allow CORS. If the supplied input is only a \`.duckdb\` file, explain that it can be inspected but cannot yet be declared in \`queryloom.yaml\`; do not silently invent an export step.
 
 ## Required design process
 
-1. State the single decision or question this dashboard answers.
+1. Locate and inspect every supplied local data input.
 2. Identify each table's grain, measures, dimensions, and reliable time field from the inspection output.
-3. Define 2–4 KPIs and one primary chart. For every metric, name its source table, aggregation, time range, and filter scope.
-4. Choose only filters supported by inspected columns. Do not invent joins, targets, columns, or business meanings.
-5. Name data-quality caveats visible in null counts, cardinality, ranges, or sample rows.
-6. Then author \`queryloom.yaml\` and \`dashboard.svelte\`; use \`queryloom guide\` for Svelte, SQL, visual, and animation rules.
+3. Prepare 2–3 genuinely distinct dashboard directions. For each, state its question, primary chart, 2–4 KPIs, supported filters, and data-quality caveats. Every metric must name its source table, aggregation, time range, and filter scope.
+4. Recommend one direction and explain the trade-off in one sentence. Choose only filters supported by inspected columns; do not invent joins, targets, columns, or business meanings.
+5. Ask the user to select or adjust a direction, then stop. Do not author \`queryloom.yaml\` or \`dashboard.svelte\` in this phase.
+6. After the user confirms a direction, author \`queryloom.yaml\` and \`dashboard.svelte\`; use \`queryloom guide\` for Svelte, SQL, visual, and animation rules. Run \`bun run check\` and \`bun run build\` before handing off.
 
 ## Boundaries
 

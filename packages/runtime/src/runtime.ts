@@ -7,7 +7,8 @@ import { resourceTableSql } from "./sql.js";
 
 export interface QueryloomResource {
   name: string;
-  path: string;
+  path?: string;
+  url?: string;
   format: "csv" | "parquet";
 }
 
@@ -24,6 +25,16 @@ function projectBaseUrl(baseUrl?: string | URL): URL {
   if (baseUrl) return new URL("./", baseUrl);
   if (typeof document !== "undefined") return new URL("./", document.baseURI);
   return new URL("./", import.meta.url);
+}
+
+function resourceUrl(resource: QueryloomResource, baseUrl: URL): URL {
+  if (resource.url) return new URL(resource.url);
+  if (resource.path) return new URL(resource.path, baseUrl);
+  throw new Error(`Resource ${resource.name} needs a path or url`);
+}
+
+function registeredFileName(resource: QueryloomResource): string {
+  return resource.path ?? `external/${resource.name}.${resource.format}`;
 }
 
 export class LocalDuckDBRuntime {
@@ -76,13 +87,14 @@ export class LocalDuckDBRuntime {
     this.connection = connection;
 
     for (const resource of this.config.resources) {
-      const url = new URL(resource.path, this.baseUrl);
+      const url = resourceUrl(resource, this.baseUrl);
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`Could not load ${resource.name} from ${url}: ${response.status} ${response.statusText}`);
       }
-      await db.registerFileBuffer(resource.path, new Uint8Array(await response.arrayBuffer()));
-      await connection.query(resourceTableSql(resource.name, resource.path, resource.format));
+      const fileName = registeredFileName(resource);
+      await db.registerFileBuffer(fileName, new Uint8Array(await response.arrayBuffer()));
+      await connection.query(resourceTableSql(resource.name, fileName, resource.format));
     }
   }
 }

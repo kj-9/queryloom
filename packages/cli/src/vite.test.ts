@@ -31,3 +31,23 @@ test("builds an initialized project without its own node_modules directory", { t
     await rm(parent, { recursive: true, force: true });
   }
 });
+
+test("builds a dashboard with an external data URL without copying a data file", { timeout: 60_000 }, async () => {
+  const projectDir = await mkdtemp(path.join(os.tmpdir(), "queryloom-external-build-"));
+
+  try {
+    await Promise.all([
+      writeFile(
+        path.join(projectDir, "queryloom.yaml"),
+        "resources:\n  sales:\n    url: https://cdn.example.com/data/sales.parquet\n",
+      ),
+      writeFile(path.join(projectDir, "dashboard.svelte"), '<main class="p-4 text-slate-900">External data</main>\n'),
+    ]);
+
+    await buildProject(await loadProject(projectDir));
+    assert.equal(existsSync(path.join(projectDir, "dist", "assets", "dashboard.js")), true);
+    assert.equal(existsSync(path.join(projectDir, "dist", "data", "sales.parquet")), false);
+  } finally {
+    await rm(projectDir, { recursive: true, force: true });
+  }
+});

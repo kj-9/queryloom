@@ -31,3 +31,21 @@ test("inspects a persisted DuckDB database through DuckDB-Wasm", { timeout: 20_0
   );
   assert.equal(table?.columns.find((column) => column.name === "amount")?.average, 100.25);
 });
+
+test("inspects an external CSV URL through DuckDB-Wasm", { timeout: 20_000 }, async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (input) => {
+    assert.equal(String(input), "https://cdn.example.com/revenue.csv?version=2");
+    return new Response("month,revenue\n2026-01,100\n2026-02,150\n");
+  };
+
+  try {
+    const inspection = await inspectPath("https://cdn.example.com/revenue.csv?version=2");
+    const table = inspection.resources[0]?.tables[0];
+    assert.equal(table?.name, "revenue");
+    assert.equal(table?.rowCount, 2);
+    assert.equal(inspection.resources[0]?.path, "https://cdn.example.com/revenue.csv?version=2");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
