@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import path from "node:path";
 import { defineCommand, runMain } from "citty";
+import { runCheck } from "./check.js";
 import { loadProject } from "./config.js";
 import { type GuideFormat, type GuidePhase, renderDesignGuide, renderGuide } from "./guide.js";
 import { initializeProject } from "./init.js";
@@ -74,6 +75,14 @@ const preview = defineCommand({
     const options = projectOptions(args);
     const project = await loadProject(options.root);
     await startPreview(project.projectDir, options);
+  },
+});
+
+const check = defineCommand({
+  meta: { name: "check", description: "Validate a dashboard project without replacing dist." },
+  args: { root: { type: "string" as const, description: "Dashboard project directory." } },
+  async run({ args }) {
+    await runCheck(args.root);
   },
 });
 
@@ -152,7 +161,7 @@ const command = defineCommand({
     version: "0.1.0",
     description: "Create and ship local-data Svelte dashboards with an Agent.",
   },
-  subCommands: { dev, build, preview, init, guide, inspect },
+  subCommands: { dev, build, preview, check, init, guide, inspect },
 });
 
 runMain(command);

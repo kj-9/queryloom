@@ -19,6 +19,7 @@ function packageJson(directory: string): string {
       type: "module",
       scripts: {
         dev: "queryloom dev",
+        check: "queryloom check",
         build: "queryloom build",
         preview: "queryloom preview",
         guide: "queryloom guide",
@@ -54,7 +55,7 @@ export async function initializeProject(directory: string): Promise<void> {
     ),
     writeFile(
       path.join(projectDir, "queryloom.yaml"),
-      "# Inspect source files first with: bun run inspect -- data/source.csv --format json\n# Then declare local CSV or Parquet resources for this dashboard.\nresources: []\n",
+      "# Inspect source files first with: bun run inspect -- data/source.csv --format json\n# Then declare each CSV or Parquet resource with either a project-local path or an external HTTP(S) url.\nresources: []\n",
     ),
     writeFile(path.join(projectDir, "data", ".gitkeep"), ""),
     writeFile(path.join(projectDir, "package.json"), packageJson(projectDir)),

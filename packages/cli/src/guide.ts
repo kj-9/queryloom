@@ -2,7 +2,7 @@ export type GuideFormat = "markdown" | "json";
 export type GuidePhase = "build" | "design";
 
 export const guide = {
-  version: 4,
+  version: 5,
   contract: {
     authoredFiles: ["dashboard.svelte", "queryloom.yaml"],
     entrypoint: "dashboard.svelte must have a default Svelte component export.",
@@ -63,6 +63,7 @@ export const guide = {
     "Use a keyed Svelte block only around content that genuinely changes with the filter, not around the whole dashboard. Respect prefers-reduced-motion and do not animate every repeated table row.",
     "Use Tailwind utilities without adding a Tailwind config or CSS entry file.",
     "Use <style> only for component-specific styling that is awkward as utilities.",
+    "Before handing off, run queryloom check, then queryloom build.",
   ],
   limits: [
     "No remote database connectors, authentication, or server-side queries. External static CSV/Parquet URLs are supported when CORS permits browser access.",
@@ -142,18 +143,22 @@ Prefer restrained borders, a single primary accent, and an aligned KPI summary o
 ## Boundaries
 
 This version supports project-local or external HTTP(S) CSV/Parquet resources and browser-local SQL. For external data URLs, require CORS and a versioned immutable URL. Do not add remote database connectors, authentication, external scripts/stylesheets, dynamic npm imports, routing, or publishing controls.
+
+## Verify
+
+Run \`queryloom check\` after authoring the two dashboard files. It validates the project, local resource files, and an isolated Svelte/Tailwind static build without replacing \`dist/\`. Then run \`queryloom build\` to create the deployable output. External URLs are validated for format by \`check\`; their CORS and reachability are verified by the browser at runtime.
 `;
 }
 
 export function renderDesignGuide(format: GuideFormat = "markdown"): string {
   const designGuide = {
-    version: 3,
-    purpose: "Turn inspected local data inputs into a concise dashboard plan before writing dashboard.svelte.",
+    version: 4,
+    purpose: "Turn inspected data inputs into a concise dashboard plan before writing dashboard.svelte.",
     requiredInput:
       "Inspect every supplied data path or HTTP(S) CSV/Parquet URL with queryloom inspect <path-or-url> --format json; after creating queryloom.yaml, inspect its declared resources with queryloom inspect --root . --format json.",
     process: [
       "When asked to visualize data, run this workflow without asking the user to restate these standard steps.",
-      "Locate the supplied local data inputs and inspect each one before deciding what to build.",
+      "Locate the supplied data inputs and inspect each one before deciding what to build.",
       "State the decision or question this dashboard should answer in one sentence.",
       "Identify the grain of each inspected table, its measures, dimensions, and any reliable time field.",
       "Define 2–4 KPIs and one primary chart. Every metric must name its source table, aggregation, time range, and filter scope.",
@@ -161,11 +166,11 @@ export function renderDesignGuide(format: GuideFormat = "markdown"): string {
       "Call out data-quality caveats visible in nulls, cardinality, ranges, or samples.",
       "Present 2–3 distinct, data-grounded dashboard directions. For each, state the question, primary chart, KPIs, filters, and caveats; recommend one direction.",
       "Ask the user to select or adjust a direction, then stop. Do not author queryloom.yaml or dashboard.svelte until the user confirms a direction.",
-      "After confirmation, author queryloom.yaml and dashboard.svelte. Follow queryloom guide for the implementation phase, then run check and build.",
+      "After confirmation, author queryloom.yaml and dashboard.svelte. Follow queryloom guide for the implementation phase, then run queryloom check and queryloom build.",
     ],
     boundaries: [
-      "Inspection is read-only and local.",
-      "Inspect local CSV, Parquet, or DuckDB files. Dashboard resources in v0 may be project-local or external HTTP(S) CSV/Parquet files.",
+      "Inspection is read-only.",
+      "Inspect local CSV, Parquet, or DuckDB files, or HTTP(S) CSV/Parquet URLs. Dashboard resources in v0 may be project-local or external HTTP(S) CSV/Parquet files.",
       "Do not make up metric definitions from column names alone; state uncertainty instead.",
     ],
   } as const;
@@ -183,17 +188,17 @@ When asked to visualize data, carry out this workflow without asking the user to
 
 ## Required design process
 
-1. Locate and inspect every supplied local data input.
+1. Locate and inspect every supplied data input.
 2. Identify each table's grain, measures, dimensions, and reliable time field from the inspection output.
 3. Prepare 2–3 genuinely distinct dashboard directions. For each, state its question, primary chart, 2–4 KPIs, supported filters, and data-quality caveats. Every metric must name its source table, aggregation, time range, and filter scope.
 4. Recommend one direction and explain the trade-off in one sentence. Choose only filters supported by inspected columns; do not invent joins, targets, columns, or business meanings.
 5. Ask the user to select or adjust a direction, then stop. Do not author \`queryloom.yaml\` or \`dashboard.svelte\` in this phase.
-6. After the user confirms a direction, author \`queryloom.yaml\` and \`dashboard.svelte\`; use \`queryloom guide\` for Svelte, SQL, visual, and animation rules. Run \`bun run check\` and \`bun run build\` before handing off.
+6. After the user confirms a direction, author \`queryloom.yaml\` and \`dashboard.svelte\`; use \`queryloom guide\` for Svelte, SQL, visual, and animation rules. Run \`queryloom check\` and \`queryloom build\` before handing off.
 
 ## Boundaries
 
 - Treat inspection as evidence, not a semantic layer. If a column's meaning is uncertain, say so.
 - Keep the plan compact: one question, a small KPI set, and one primary visualization.
-- \`.duckdb\` files can be inspected, but v0 dashboards declare local CSV or Parquet resources only.
+- \`.duckdb\` files can be inspected, but v0 dashboards declare CSV or Parquet resources via a project-local \`path\` or external HTTP(S) \`url\`.
 `;
 }

@@ -22,6 +22,7 @@ test("initializes an empty agent-ready dashboard project without overwriting", a
       type: "module",
       scripts: {
         dev: "queryloom dev",
+        check: "queryloom check",
         build: "queryloom build",
         preview: "queryloom preview",
         guide: "queryloom guide",
@@ -34,6 +35,7 @@ test("initializes an empty agent-ready dashboard project without overwriting", a
         svelte: "^5.16.0",
       },
     });
+    assert.match(await readFile(path.join(project, "queryloom.yaml"), "utf8"), /external HTTP\(S\) url/);
     await assert.rejects(() => initializeProject(project), /already exists/);
   } finally {
     await rm(parent, { recursive: true, force: true });
