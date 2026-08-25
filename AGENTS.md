@@ -1,47 +1,49 @@
 # Repository Guidelines
 
-## Project Structure & Module Organization
+## Structure
 
-- `packages/cli/` contains the public `@queryloom/cli`, Vite integration, and agent guide.
-- `packages/runtime/` implements the public `@queryloom/library` data API; the CLI supplies LayerChart directly to dashboards.
-- `examples/revenue-dashboard/` is the reference dashboard: `dashboard.svelte` for UI/query logic and `queryloom.yaml` for resources. Sample data lives in `data/`.
-- Keep unit tests next to their source as `*.test.ts`. Treat `examples/**/dist/` as generated output; do not commit it.
-- Read `README.md` for the product contract and `ROADMAP.md` for intentionally deferred work before changing architecture.
+- `packages/cli/`: public `@queryloom/cli`, Vite integration, data inspection, and agent guides.
+- `packages/runtime/`: public `@queryloom/library` browser-local DuckDB-Wasm API.
+- `examples/revenue-dashboard/`: maintained reference dashboard and small test data.
+- `examples/address-data/`: generated dashboard experiment; its source data is intentionally large.
+- `openspec/`: OpenSpec configuration and in-progress change artifacts.
+- Keep unit tests beside source as `*.test.ts`. Never commit `examples/**/dist/`.
 
-## Build, Test, and Development Commands
+## Commands
 
-Use Bun 1.3.14 and run commands from the repository root.
+Use Bun 1.3.14 from the repository root.
 
 | Task | Command |
 | --- | --- |
 | Install dependencies | `bun install` |
-| Develop the reference dashboard | `bun run dev` |
-| Build its deployable static output | `bun run build` |
-| Preview the build | `bun run preview` |
-| Run all tests | `bun test` |
-| Type-check all workspaces | `bun run check` |
-| Check formatting and lint | `bun run style:check` |
-| Apply repository formatting | `bun run format` |
-| Package the CLI | `bun run --cwd packages/cli compile` |
+| Run tests | `bun test` |
+| Type-check workspaces | `bun run check` |
+| Lint and format check | `bun run style:check` |
+| Apply formatting | `bun run format` |
+| Build reference dashboard | `bun run build` |
+| Compile CLI package | `bun run --cwd packages/cli compile` |
+| Validate OpenSpec artifacts | `openspec validate --all --strict` |
 
-Run `bun test`, `bun run check`, and `bun run style:check` for every code change. Run `bun run build` when changing the CLI, runtime bundling, styling pipeline, or example dashboard.
+Run `bun test`, `bun run check`, and `bun run style:check` for every code change. Build and visually inspect a dashboard after CLI, runtime, styling, or chart changes.
 
-## Coding Style & Naming Conventions
+## OpenSpec Changes
 
-- Run Biome before committing; it enforces two-space indentation, semicolons, and double-quoted strings for TypeScript.
-- Use `camelCase` for functions and values, `PascalCase` for Svelte components and exported types, and `kebab-case` for package paths.
-- Use Svelte 5 runes (`$state`, `$derived`) for dashboard state. Keep independent dashboard sections independently queryable and give each local loading/error UI.
-- Dashboard SQL may reference only tables declared in its `queryloom.yaml`; normalize DuckDB query values before display.
-- Tailwind is supplied by the CLI. Do not add a Tailwind config or stylesheet entry to an example.
+- Use OpenSpec for behavior or architecture changes: propose, agree the artifacts, implement, verify, then archive.
+- Keep project-wide context and artifact rules in `openspec/config.yaml`.
+- Keep each change scoped; do not implement unapproved proposal work.
+- Update `ROADMAP.md` when a decision changes product sequencing or a deferred scope.
 
-## Testing Guidelines
+## Conventions
 
-- Add `*.test.ts` coverage for CLI, config, and runtime SQL behavior.
-- Prefer small deterministic fixtures such as `examples/revenue-dashboard/data/revenue.csv`.
-- For Svelte UI changes, `bun run check` is required; also build and visually inspect the reference dashboard when layout or charts change.
+- Biome enforces two spaces, semicolons, and double-quoted TypeScript strings.
+- Use `camelCase` for values/functions, `PascalCase` for components/types, and `kebab-case` paths.
+- Use Svelte 5 runes for dashboard state. Keep independent sections independently queryable with local loading/error UI.
+- Dashboard SQL may use only `queryloom.yaml` resources. Normalize DuckDB query values before display.
+- A resource uses either project-local `path` (copied into `dist/`) or external HTTP(S) `url` (browser-fetched with CORS); never both.
+- Tailwind and LayerChart are supplied by the CLI. Import generic LayerChart components directly; do not add domain-specific chart wrappers to the library.
 
-## Commit & Pull Request Guidelines
+## Commit and Pull Requests
 
-- The repository currently has one initial commit, so no historical message convention exists. Use short, imperative subjects, e.g. `Add dashboard validation`.
-- Keep commits focused; avoid mixing generated output, dependency churn, and feature changes.
-- Pull requests should state user-facing effect, verification, related issues, and screenshots for visual changes.
+- Use short imperative commit subjects, e.g. `Add dashboard validation`.
+- Keep generated output and dependency churn separate from functional changes.
+- Describe user-facing behavior and verification in pull requests; add screenshots for visual changes.

@@ -1,0 +1,33 @@
+schema: spec-driven
+
+context: |
+  Queryloom is an agent-authored, static dashboard toolkit.
+  Tech stack: Bun workspaces, TypeScript, Svelte 5, Vite, Tailwind CSS,
+  LayerChart, DuckDB-Wasm, and Biome.
+  packages/cli is the public @queryloom/cli; packages/runtime is the public
+  @queryloom/library. Dashboard authors write dashboard.svelte and
+  queryloom.yaml. The CLI bundles local CSV/Parquet data or preserves external
+  HTTP(S) URLs that are fetched in the browser (with CORS required).
+  Keep the runtime API generic; do not add domain-specific dashboard components.
+  Use Svelte 5 runes, declarative transitions, and direct LayerChart imports.
+  Validate implementation with bun test, bun run check, and bun run style:check.
+
+rules:
+  proposal:
+    - State the agent-authoring and static-deployment impact.
+    - Keep out-of-scope connector expansion explicit.
+  design:
+    - Specify the package boundary, dashboard contract, and data-delivery behavior when relevant.
+  tasks:
+    - Include automated validation and visual inspection when dashboards or charts change.
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+operations:
+  apply:
+    guidance:
+      - Keep changes scoped to the approved proposal.
+      - Run the repository checks required by AGENTS.md before completion.
+  archive:
+    guidance:
+      - Summarize user-visible behavior and validation results.
