@@ -55,7 +55,7 @@ export async function initializeProject(directory: string): Promise<void> {
     ),
     writeFile(
       path.join(projectDir, "queryloom.yaml"),
-      "# Inspect source files first with: bun run inspect -- data/source.csv --format json\n# Then declare each CSV or Parquet resource with either a project-local path or an external HTTP(S) url.\nresources: []\n",
+      "# Inspect source files first with: bun run inspect -- data/source.csv --format json\n# Then declare each CSV or Parquet resource with exactly one project-local path (copied to dist/) or external HTTP(S) url (browser-fetched with CORS).\n# Local .duckdb files can be inspected but are not dashboard resources in v0.\nresources: []\n",
     ),
     writeFile(path.join(projectDir, "data", ".gitkeep"), ""),
     writeFile(path.join(projectDir, "package.json"), packageJson(projectDir)),

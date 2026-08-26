@@ -13,7 +13,7 @@ dashboard.svelte   # UI、SQL、状態、インタラクション
 queryloom.yaml     # データ資源の宣言
 ```
 
-標準では、`queryloom.yaml` が参照する CSV または Parquet ファイルをプロジェクト内に置く。
+各resourceは、自己完結した配布向けのプロジェクト内CSV / Parquet `path`、またはCDNなどで管理する外部HTTP(S) CSV / Parquet `url`のどちらか一方で宣言する。
 
 ```text
 revenue-dashboard/
@@ -23,7 +23,7 @@ revenue-dashboard/
     └── sales.csv
 ```
 
-`queryloom build` は Svelte と DuckDB-Wasm、そしてプロジェクト内データを bundle し、任意の静的ホスティングへ配置できる `dist/` を出力する。外部URLのデータはbundleせず、閲覧者のブラウザで取得する。クエリはサーバーではなく閲覧者のブラウザで実行される。
+`queryloom build` は Svelte と DuckDB-Wasm、そして `path` のプロジェクト内データを bundle し、任意の静的ホスティングへ配置できる `dist/` を出力する。`url` の外部データはbundleせず、閲覧者のブラウザが実行時に取得するためCORSが必要である。クエリはサーバーではなく閲覧者のブラウザで実行される。
 
 ## 使い方
 
@@ -69,7 +69,7 @@ bun run queryloom -- build --root examples/revenue-dashboard
 
 ## データ定義
 
-`queryloom.yaml` では、テーブル名とローカルファイルの対応だけを宣言する。
+`queryloom.yaml` では、SQLで使うテーブル名と、ひとつの静的データresourceを宣言する。resourceはプロジェクト内の `path` または外部HTTP(S)の `url` のどちらか一方である。
 
 ```yaml
 resources:
@@ -79,7 +79,7 @@ resources:
 
 Dashboardが扱うのはCSVとParquetである。ファイル形式は拡張子で判定し、`resources` のキー（上例では `sales`）を Svelte 側の SQL テーブル名として参照する。配列形式を使う場合は `name` を指定する。`.duckdb` は設計時のinspect対象にはできるが、v0のブラウザDashboardのresourceにはまだ宣言しない。
 
-`path` はプロジェクト内のデータを指し、build時に`dist/`へそのままコピーする。これは標準の静的配布方式である。データを別デプロイ・CDNで管理したい場合は、HTTP(S)の`url`を指定できる。この場合、データはbuild成果物へ含めず、閲覧者のブラウザが実行時に取得する。外部URLはCORSを許可し、内容変更時はURLをバージョニングすること。
+`path` はプロジェクト内のデータを指し、build時に`dist/`へそのままコピーする。`url` はデータを別デプロイ・CDNで管理するときに使い、build成果物へは含めない。閲覧者のブラウザが実行時に取得するため、外部URLはCORSを許可し、内容変更時はバージョン付きの不変URLを使うこと。`queryloom check` はURLの形式だけを検証し、到達性とCORSはブラウザ実行時に検証される。
 
 ```yaml
 resources:

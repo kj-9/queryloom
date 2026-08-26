@@ -10,6 +10,9 @@ test("renders the agent guide as markdown and JSON", () => {
   assert.match(renderGuide(), /selected value from the event/);
   assert.match(renderGuide(), /Keep the page shell stable/);
   assert.match(renderGuide(), /queryloom check/);
+  assert.match(renderGuide(), /exactly one project-local/);
+  assert.match(renderGuide(), /copied to `dist\//);
+  assert.match(renderGuide(), /reachability and CORS are verified by the browser/);
   assert.equal(JSON.parse(renderGuide("json")).version, 5);
   assert.deepEqual(JSON.parse(renderGuide("json")), guide);
 });

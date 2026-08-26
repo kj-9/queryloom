@@ -35,7 +35,10 @@ test("initializes an empty agent-ready dashboard project without overwriting", a
         svelte: "^5.16.0",
       },
     });
-    assert.match(await readFile(path.join(project, "queryloom.yaml"), "utf8"), /external HTTP\(S\) url/);
+    const config = await readFile(path.join(project, "queryloom.yaml"), "utf8");
+    assert.match(config, /exactly one project-local path/);
+    assert.match(config, /browser-fetched with CORS/);
+    assert.match(config, /not dashboard resources in v0/);
     await assert.rejects(() => initializeProject(project), /already exists/);
   } finally {
     await rm(parent, { recursive: true, force: true });

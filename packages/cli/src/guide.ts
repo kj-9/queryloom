@@ -142,7 +142,7 @@ Prefer restrained borders, a single primary accent, and an aligned KPI summary o
 
 ## Boundaries
 
-This version supports project-local or external HTTP(S) CSV/Parquet resources and browser-local SQL. For external data URLs, require CORS and a versioned immutable URL. Do not add remote database connectors, authentication, external scripts/stylesheets, dynamic npm imports, routing, or publishing controls.
+This version supports browser-local SQL over CSV/Parquet resources. Declare exactly one project-local \`path\` (copied to \`dist/\`) or external HTTP(S) \`url\` (browser-fetched at runtime) for each resource. External data URLs require CORS and a versioned immutable URL. \`.duckdb\` files can be inspected locally but cannot be dashboard resources in v0. \`queryloom check\` validates an external URL's format, while its reachability and CORS are verified by the browser at runtime. Do not add remote database connectors, authentication, external scripts/stylesheets, dynamic npm imports, routing, or publishing controls.
 
 ## Verify
 
