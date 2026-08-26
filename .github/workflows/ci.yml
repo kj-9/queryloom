@@ -35,6 +35,21 @@ jobs:
       - name: Run tests
         run: bun test
 
+      - name: Install Chromium for scaffold E2E
+        working-directory: packages/cli
+        run: bunx playwright install --with-deps chromium
+
+      - name: Run scaffold workflow E2E
+        run: bun run --cwd packages/cli e2e
+
+      - name: Upload scaffold E2E artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scaffold-e2e-artifacts
+          path: packages/cli/test-results/
+          if-no-files-found: ignore
+
       - name: Type-check workspaces
         run: bun run check
 

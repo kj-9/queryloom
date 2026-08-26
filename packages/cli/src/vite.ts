@@ -195,7 +195,8 @@ export async function startDev(
   server.printUrls();
 }
 
-export async function startPreview(projectDir: string, options: { host?: string; port?: number }): Promise<void> {
+export async function startPreview(projectDir: string, options: { host?: string; port?: number }) {
   const server = await vitePreview({ root: projectDir, preview: { host: options.host, port: options.port } });
   server.printUrls();
+  return server;
 }

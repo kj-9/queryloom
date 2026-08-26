@@ -22,13 +22,15 @@
     "compile": "tsup src/index.ts --format esm --dts --clean --external vite --external @sveltejs/vite-plugin-svelte --external @tailwindcss/vite",
     "prepack": "bun run compile",
     "check": "tsc -p tsconfig.json --noEmit",
-    "test": "tsx --test src/**/*.test.ts"
+    "test": "tsx --test src/**/*.test.ts",
+    "e2e": "playwright test -c e2e/playwright.config.ts"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@types/node": "^22.10.2",
     "@vitejs/plugin-basic-ssl": "^2.0.0",
-    "tsx": "^4.19.2",
     "tsup": "^8.3.5",
+    "tsx": "^4.19.2",
     "typescript": "^5.7.2"
   },
   "dependencies": {
