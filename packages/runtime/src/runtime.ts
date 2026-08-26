@@ -3,6 +3,7 @@ import duckdbEhWorker from "@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js
 import duckdbMvpWorker from "@duckdb/duckdb-wasm/dist/duckdb-browser-mvp.worker.js?url";
 import duckdbEhWasm from "@duckdb/duckdb-wasm/dist/duckdb-eh.wasm?url";
 import duckdbMvpWasm from "@duckdb/duckdb-wasm/dist/duckdb-mvp.wasm?url";
+import { fetchResources } from "./resource-loader.js";
 import { resourceTableSql } from "./sql.js";
 
 export interface QueryloomResource {
@@ -27,14 +28,17 @@ function projectBaseUrl(baseUrl?: string | URL): URL {
   return new URL("./", import.meta.url);
 }
 
-function resourceUrl(resource: QueryloomResource, baseUrl: URL): URL {
-  if (resource.url) return new URL(resource.url);
-  if (resource.path) return new URL(resource.path, baseUrl);
-  throw new Error(`Resource ${resource.name} needs a path or url`);
-}
-
 function registeredFileName(resource: QueryloomResource): string {
   return resource.path ?? `external/${resource.name}.${resource.format}`;
+}
+
+function durationSince(startedAt: number): number {
+  return Math.round((performance.now() - startedAt) * 10) / 10;
+}
+
+function reportResource(event: Record<string, unknown>): void {
+  const environment = (import.meta as ImportMeta & { env?: { DEV?: boolean } }).env;
+  if (environment?.DEV) console.debug("[queryloom] resource", event);
 }
 
 export class LocalDuckDBRuntime {
@@ -86,15 +90,24 @@ export class LocalDuckDBRuntime {
     this.db = db;
     this.connection = connection;
 
-    for (const resource of this.config.resources) {
-      const url = resourceUrl(resource, this.baseUrl);
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`Could not load ${resource.name} from ${url}: ${response.status} ${response.statusText}`);
+    const loadedResources = await fetchResources(this.config.resources, this.baseUrl);
+    for (const { resource, data } of loadedResources) {
+      const startedAt = performance.now();
+      try {
+        const fileName = registeredFileName(resource);
+        await db.registerFileBuffer(fileName, data);
+        await connection.query(resourceTableSql(resource.name, fileName, resource.format));
+        reportResource({ resource: resource.name, phase: "register", durationMs: durationSince(startedAt) });
+      } catch (cause) {
+        reportResource({
+          resource: resource.name,
+          phase: "register",
+          kind: "data",
+          durationMs: durationSince(startedAt),
+          cause,
+        });
+        throw new Error(`Could not register resource ${resource.name} (data)`, { cause });
       }
-      const fileName = registeredFileName(resource);
-      await db.registerFileBuffer(fileName, new Uint8Array(await response.arrayBuffer()));
-      await connection.query(resourceTableSql(resource.name, fileName, resource.format));
     }
   }
 }
